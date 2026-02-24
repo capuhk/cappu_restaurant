@@ -694,14 +694,8 @@
 </div><!-- /container -->
 
 <script>
-// ============================================================
-// ★★★ GAS 웹앱 URL (여기만 바꾸면 됩니다) ★★★
-// ============================================================
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbw0bZFhbAaB_9sIpI3cQ3x0DCL9iijrXVQbs9MEHTDtLEp5a3QfbDpiB9PCxQYKfUJ8Jw/exec';
 
-// ============================================================
-// JSONP 호출 헬퍼 (GitHub Pages에서 GAS 호출용)
-// ============================================================
 var _cbIdx = 0;
 function gasCall(params) {
   return new Promise(function(resolve, reject) {
@@ -720,81 +714,56 @@ function gasCall(params) {
   });
 }
 
-// ============================================================
-// 전역 상태
-// ============================================================
-var currentUser = null;
-var userIdChecked = false;
-var memberIdChecked = false;
-var selectedRestaurantId = 'all';
-var adminRestaurantId = null;
-
+var currentUser = null, userIdChecked = false, memberIdChecked = false;
+var selectedRestaurantId = 'all', adminRestaurantId = null;
 var Cache = {
   restaurants: null, menus: {}, members: null, departments: null,
-  clear: function() { this.restaurants = null; this.menus = {}; this.members = null; this.departments = null; },
-  clearRestaurants: function() { this.restaurants = null; this.menus = {}; },
-  clearMenus: function(rId) { if (rId) delete this.menus[rId]; else this.menus = {}; },
-  clearMembers: function() { this.members = null; },
-  clearDepts: function() { this.departments = null; }
+  clear: function() { this.restaurants=null; this.menus={}; this.members=null; this.departments=null; },
+  clearRestaurants: function() { this.restaurants=null; this.menus={}; },
+  clearMenus: function(rId) { if(rId) delete this.menus[rId]; else this.menus={}; },
+  clearMembers: function() { this.members=null; }
 };
 
-// ============================================================
-// 비밀번호 강도
-// ============================================================
 function getPasswordStrength(pw) {
   if (!pw) return 0;
-  var score = 0;
-  if (pw.length >= 6) score++;
-  if (pw.length >= 10) score++;
-  if (/[a-zA-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^a-zA-Z0-9]/.test(pw)) score++;
-  return score;
+  var s=0;
+  if (pw.length>=6) s++; if (pw.length>=10) s++;
+  if (/[a-zA-Z]/.test(pw)) s++; if (/[0-9]/.test(pw)) s++; if (/[^a-zA-Z0-9]/.test(pw)) s++;
+  return s;
 }
 function renderStrength(score, fillId, textId, wrapId) {
-  var wrap = document.getElementById(wrapId), fill = document.getElementById(fillId), text = document.getElementById(textId);
-  if (!wrap || !fill || !text) return;
-  wrap.style.display = 'block';
-  var pct, color, label, cls;
-  if (score <= 1)      { pct='20%'; color='#ef4444'; label='매우 약함'; cls='pw-weak'; }
-  else if (score === 2){ pct='40%'; color='#f97316'; label='약함';     cls='pw-weak'; }
-  else if (score === 3){ pct='60%'; color='#f59e0b'; label='보통';     cls='pw-medium'; }
-  else if (score === 4){ pct='80%'; color='#84cc16'; label='강함';     cls='pw-strong'; }
-  else                 { pct='100%';color='#10b981'; label='매우 강함'; cls='pw-strong'; }
-  fill.style.width = pct; fill.style.background = color;
-  text.textContent = label; text.className = cls;
+  var wrap=document.getElementById(wrapId), fill=document.getElementById(fillId), text=document.getElementById(textId);
+  if (!wrap||!fill||!text) return;
+  wrap.style.display='block';
+  var map=[[1,'20%','#ef4444','매우 약함','pw-weak'],[2,'40%','#f97316','약함','pw-weak'],[3,'60%','#f59e0b','보통','pw-medium'],[4,'80%','#84cc16','강함','pw-strong'],[5,'100%','#10b981','매우 강함','pw-strong']];
+  var m = map[Math.min(score,5)-1] || map[0];
+  fill.style.width=m[1]; fill.style.background=m[2]; text.textContent=m[3]; text.className=m[4];
 }
-function checkPasswordStrength(pw)  { renderStrength(getPasswordStrength(pw), 'pwStrengthFill',  'pwStrengthText',  'pwStrengthWrap'); }
-function checkPasswordStrength2(pw) { renderStrength(getPasswordStrength(pw), 'pwStrengthFill2', 'pwStrengthText2', 'pwStrengthWrap2'); }
+function checkPasswordStrength(pw)  { renderStrength(getPasswordStrength(pw),'pwStrengthFill','pwStrengthText','pwStrengthWrap'); }
+function checkPasswordStrength2(pw) { renderStrength(getPasswordStrength(pw),'pwStrengthFill2','pwStrengthText2','pwStrengthWrap2'); }
 
-// ============================================================
-// 초기화
-// ============================================================
 window.onload = function() { loadSavedCredentials(); setDefaultDates(); };
 
 function loadSavedCredentials() {
   try {
-    if (localStorage.getItem('rememberMe') === 'true') {
-      document.getElementById('loginUserId').value = localStorage.getItem('userId') || '';
-      document.getElementById('loginPassword').value = localStorage.getItem('password') || '';
+    if (localStorage.getItem('rememberMe')==='true') {
+      document.getElementById('loginUserId').value = localStorage.getItem('userId')||'';
+      document.getElementById('loginPassword').value = localStorage.getItem('password')||'';
       document.getElementById('rememberMe').checked = true;
     }
   } catch(e) {}
 }
-function saveCredentials(userId, password, remember) {
+function saveCredentials(u, p, r) {
   try {
-    if (remember) { localStorage.setItem('rememberMe','true'); localStorage.setItem('userId',userId); localStorage.setItem('password',password); }
+    if (r) { localStorage.setItem('rememberMe','true'); localStorage.setItem('userId',u); localStorage.setItem('password',p); }
     else { localStorage.removeItem('rememberMe'); localStorage.removeItem('userId'); localStorage.removeItem('password'); }
   } catch(e) {}
 }
 function setDefaultDates() {
-  var today = new Date().toISOString().split('T')[0];
-  ['adminStartDate','adminEndDate','masterStartDate','masterEndDate'].forEach(function(id) {
-    var el = document.getElementById(id); if (el) el.value = today;
-  });
+  var t = new Date().toISOString().split('T')[0];
+  ['adminStartDate','adminEndDate','masterStartDate','masterEndDate'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=t; });
 }
 
-// ★ 로그인 직후 한번에 모두 미리 로드
 function preloadCache() {
   if (Cache.restaurants && Cache.departments) return;
   gasCall({ action: 'getInitialData' })
@@ -803,25 +772,19 @@ function preloadCache() {
       if (data.departments) Cache.departments = data.departments;
     })
     .catch(function() {
-      if (!Cache.restaurants) gasCall({ action: 'getRestaurants' }).then(function(d) { Cache.restaurants = d; });
-      if (!Cache.departments) gasCall({ action: 'getDepartments' }).then(function(d) { Cache.departments = d; });
+      if (!Cache.restaurants) gasCall({action:'getRestaurants'}).then(function(d){Cache.restaurants=d;});
+      if (!Cache.departments) gasCall({action:'getDepartments'}).then(function(d){Cache.departments=d;});
     });
 }
 
-// ============================================================
-// 화면 전환
-// ============================================================
 function hideAllScreens() {
-  ['loginScreen','registerScreen','userScreen','adminScreen','masterScreen'].forEach(function(id) {
+  ['loginScreen','registerScreen','userScreen','adminScreen','masterScreen'].forEach(function(id){
     document.getElementById(id).classList.add('hidden');
   });
-  window.scrollTo(0, 0);
+  window.scrollTo(0,0);
 }
 function showLoginScreen() { hideAllScreens(); document.getElementById('loginScreen').classList.remove('hidden'); }
-function showRegisterScreen() {
-  hideAllScreens(); document.getElementById('registerScreen').classList.remove('hidden');
-  userIdChecked = false; loadDeptSelect('registerDepartment');
-}
+function showRegisterScreen() { hideAllScreens(); document.getElementById('registerScreen').classList.remove('hidden'); userIdChecked=false; loadDeptSelect('registerDepartment'); }
 function showUserScreen() {
   hideAllScreens(); document.getElementById('userScreen').classList.remove('hidden');
   document.getElementById('userNameDisplay').textContent = currentUser.name;
@@ -832,7 +795,7 @@ function showAdminScreen() {
   hideAllScreens(); document.getElementById('adminScreen').classList.remove('hidden');
   document.getElementById('adminNameDisplay').textContent = currentUser.name;
   document.getElementById('adminDeptDisplay').textContent = currentUser.department;
-  adminRestaurantId = (currentUser.restaurantId || '').trim();
+  adminRestaurantId = (currentUser.restaurantId||'').trim();
   if (!adminRestaurantId) {
     document.getElementById('adminRestaurantBanner').classList.remove('hidden');
     document.getElementById('adminRestaurantName').textContent = '배정된 식당 없음';
@@ -841,9 +804,9 @@ function showAdminScreen() {
   }
   document.getElementById('adminRestaurantBanner').classList.remove('hidden');
   document.getElementById('adminRestaurantName').textContent = '로딩 중...';
-  gasCall({ action: 'getAdminRestaurant', userId: currentUser.userId })
-    .then(function(r) { document.getElementById('adminRestaurantName').textContent = r ? r.name : '식당 정보 없음'; })
-    .catch(function() { document.getElementById('adminRestaurantName').textContent = adminRestaurantId; });
+  gasCall({action:'getAdminRestaurant', userId:currentUser.userId})
+    .then(function(r){ document.getElementById('adminRestaurantName').textContent = r ? r.name : '식당 정보 없음'; })
+    .catch(function(){ document.getElementById('adminRestaurantName').textContent = adminRestaurantId; });
   setDefaultDates(); loadTodayOrders();
 }
 function showMasterScreen() {
@@ -853,128 +816,118 @@ function showMasterScreen() {
 }
 function showMasterHome() {
   document.getElementById('masterHome').classList.remove('hidden');
-  document.querySelectorAll('.master-page').forEach(function(p) { p.classList.add('hidden'); });
-  window.scrollTo(0, 0);
+  document.querySelectorAll('.master-page').forEach(function(p){p.classList.add('hidden');});
+  window.scrollTo(0,0);
 }
 function showMasterPage(page) {
   document.getElementById('masterHome').classList.add('hidden');
-  document.querySelectorAll('.master-page').forEach(function(p) { p.classList.add('hidden'); });
-  if (page === 'restaurant')  { document.getElementById('masterPageRestaurant').classList.remove('hidden'); loadRestaurantsForMaster(); }
-  else if (page === 'menu')   { document.getElementById('masterPageMenu').classList.remove('hidden'); loadRestaurantSelectForMenu(); }
-  else if (page === 'stats')  { document.getElementById('masterPageStats').classList.remove('hidden'); setDefaultDates(); loadRestaurantButtonsForStats(); loadDeptSelectForStats(); }
-  else if (page === 'members'){ document.getElementById('masterPageMembers').classList.remove('hidden'); memberIdChecked=false; loadMembers(); loadRestaurantSelectForMember(); loadDeptSelect('newMemberDept'); }
-  else if (page === 'departments'){ document.getElementById('masterPageDepartments').classList.remove('hidden'); loadDepartmentsForMaster(); }
-  window.scrollTo(0, 0);
+  document.querySelectorAll('.master-page').forEach(function(p){p.classList.add('hidden');});
+  if (page==='restaurant')   { document.getElementById('masterPageRestaurant').classList.remove('hidden'); loadRestaurantsForMaster(); }
+  else if (page==='menu')    { document.getElementById('masterPageMenu').classList.remove('hidden'); loadRestaurantSelectForMenu(); }
+  else if (page==='stats')   { document.getElementById('masterPageStats').classList.remove('hidden'); setDefaultDates(); loadRestaurantButtonsForStats(); loadDeptSelectForStats(); }
+  else if (page==='members') { document.getElementById('masterPageMembers').classList.remove('hidden'); memberIdChecked=false; loadMembers(); loadRestaurantSelectForMember(); loadDeptSelect('newMemberDept'); }
+  else if (page==='departments') { document.getElementById('masterPageDepartments').classList.remove('hidden'); loadDepartmentsForMaster(); }
+  window.scrollTo(0,0);
 }
 function refreshNow() { loadTodayOrders(); }
 
-// ============================================================
-// 인증
-// ============================================================
 function handleLogin() {
-  var userId = document.getElementById('loginUserId').value.trim();
-  var password = document.getElementById('loginPassword').value;
-  var rememberMe = document.getElementById('rememberMe').checked;
-  if (!userId || !password) { showAlert('loginAlert','아이디와 비밀번호를 입력하세요','error'); return; }
+  var userId=document.getElementById('loginUserId').value.trim();
+  var password=document.getElementById('loginPassword').value;
+  var rememberMe=document.getElementById('rememberMe').checked;
+  if (!userId||!password) { showAlert('loginAlert','아이디와 비밀번호를 입력하세요','error'); return; }
   showLoading('loginAlert');
-  gasCall({ action: 'login', userId: userId, password: password })
+  gasCall({action:'login', userId:userId, password:password})
     .then(function(result) {
       if (result.success) {
-        currentUser = result.user;
-        saveCredentials(userId, password, rememberMe);
-        if (currentUser.role === 'master') showMasterScreen();
-        else if (currentUser.role === 'admin') showAdminScreen();
+        currentUser=result.user; saveCredentials(userId,password,rememberMe);
+        if (currentUser.role==='master') showMasterScreen();
+        else if (currentUser.role==='admin') showAdminScreen();
         else showUserScreen();
       } else { showAlert('loginAlert', result.message, 'error'); }
     })
-    .catch(function() { showAlert('loginAlert','로그인 중 오류가 발생했습니다.','error'); });
+    .catch(function(){ showAlert('loginAlert','로그인 중 오류가 발생했습니다.','error'); });
 }
 function handleLogout() { currentUser=null; adminRestaurantId=null; Cache.clear(); showLoginScreen(); }
 
 function checkDuplicateUserId() {
-  var userId = document.getElementById('registerUserId').value.trim();
+  var userId=document.getElementById('registerUserId').value.trim();
   if (!userId) { showAlert('registerAlert','아이디를 입력하세요','error'); return; }
-  gasCall({ action: 'checkUserId', userId: userId })
-    .then(function(r) { showAlert('registerAlert', r.message, r.available ? 'success' : 'error'); userIdChecked = r.available; })
-    .catch(function() { showAlert('registerAlert','중복 확인 중 오류가 발생했습니다','error'); });
+  gasCall({action:'checkUserId', userId:userId})
+    .then(function(r){ showAlert('registerAlert',r.message,r.available?'success':'error'); userIdChecked=r.available; })
+    .catch(function(){ showAlert('registerAlert','중복 확인 중 오류가 발생했습니다','error'); });
 }
 function handleRegister() {
-  var userId=document.getElementById('registerUserId').value.trim(), password=document.getElementById('registerPassword').value;
-  var name=document.getElementById('registerName').value.trim(), department=document.getElementById('registerDepartment').value.trim();
+  var userId=document.getElementById('registerUserId').value.trim();
+  var password=document.getElementById('registerPassword').value;
+  var name=document.getElementById('registerName').value.trim();
+  var department=document.getElementById('registerDepartment').value.trim();
   var email=document.getElementById('registerEmail').value.trim();
   if (!userId||!password||!name||!department) { showAlert('registerAlert','아이디, 비밀번호, 이름, 부서는 필수 입력 항목입니다','error'); return; }
   if (!userIdChecked) { showAlert('registerAlert','아이디 중복 확인을 해주세요','error'); return; }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showAlert('registerAlert','이메일 형식이 올바르지 않습니다','error'); return; }
   showLoading('registerAlert');
-  gasCall({ action: 'registerUser', userId: userId, password: password, name: name, department: department, email: email })
-    .then(function(r) {
-      if (r.success) { showAlert('registerAlert', r.message, 'success'); setTimeout(function() { showLoginScreen(); }, 2000); }
-      else { showAlert('registerAlert', r.message, 'error'); }
-    })
-    .catch(function() { showAlert('registerAlert','회원가입 중 오류가 발생했습니다','error'); });
+  gasCall({action:'registerUser', userId:userId, password:password, name:name, department:department, email:email})
+    .then(function(r){
+      if (r.success) { showAlert('registerAlert',r.message,'success'); setTimeout(function(){showLoginScreen();},2000); }
+      else { showAlert('registerAlert',r.message,'error'); }
+    }).catch(function(){ showAlert('registerAlert','회원가입 중 오류가 발생했습니다','error'); });
 }
 function handleChangePassword() {
-  var currentPw=document.getElementById('userCurrentPw').value, newPw=document.getElementById('userNewPw').value;
+  var currentPw=document.getElementById('userCurrentPw').value;
+  var newPw=document.getElementById('userNewPw').value;
   var confirmPw=document.getElementById('userNewPwConfirm').value;
   if (!currentPw||!newPw||!confirmPw) { showAlert('userChangePwAlert','모든 항목을 입력하세요','error'); return; }
-  if (newPw !== confirmPw) { showAlert('userChangePwAlert','새 비밀번호가 일치하지 않습니다','error'); return; }
-  if (newPw.length < 4) { showAlert('userChangePwAlert','새 비밀번호는 4자 이상이어야 합니다','error'); return; }
+  if (newPw!==confirmPw) { showAlert('userChangePwAlert','새 비밀번호가 일치하지 않습니다','error'); return; }
+  if (newPw.length<4) { showAlert('userChangePwAlert','새 비밀번호는 4자 이상이어야 합니다','error'); return; }
   showLoading('userChangePwAlert');
-  gasCall({ action: 'changePassword', userId: currentUser.userId, currentPw: currentPw, newPw: newPw })
-    .then(function(r) {
+  gasCall({action:'changePassword', userId:currentUser.userId, currentPw:currentPw, newPw:newPw})
+    .then(function(r){
       if (r.success) {
-        showAlert('userChangePwAlert', r.message, 'success');
+        showAlert('userChangePwAlert',r.message,'success');
         document.getElementById('userCurrentPw').value=''; document.getElementById('userNewPw').value='';
         document.getElementById('userNewPwConfirm').value=''; document.getElementById('pwStrengthWrap2').style.display='none';
-      } else { showAlert('userChangePwAlert', r.message, 'error'); }
-    })
-    .catch(function() { showAlert('userChangePwAlert','비밀번호 변경 중 오류가 발생했습니다','error'); });
+      } else { showAlert('userChangePwAlert',r.message,'error'); }
+    }).catch(function(){ showAlert('userChangePwAlert','비밀번호 변경 중 오류가 발생했습니다','error'); });
 }
 
-// ============================================================
-// 식당/메뉴/주문
-// ============================================================
 function fillRestaurantSelect(selectId, restaurants) {
-  var select = document.getElementById(selectId);
-  select.innerHTML = '<option value="">식당을 선택하세요</option>';
-  restaurants.forEach(function(r) {
-    var opt = document.createElement('option');
-    opt.value = r.id; opt.textContent = r.name; opt.dataset.name = r.name; select.appendChild(opt);
-  });
+  var select=document.getElementById(selectId);
+  select.innerHTML='<option value="">식당을 선택하세요</option>';
+  restaurants.forEach(function(r){ var opt=document.createElement('option'); opt.value=r.id; opt.textContent=r.name; opt.dataset.name=r.name; select.appendChild(opt); });
 }
 function loadRestaurantsForUser() {
-  if (Cache.restaurants) { fillRestaurantSelect('userRestaurantSelect', Cache.restaurants); return; }
-  gasCall({ action: 'getRestaurants' })
-    .then(function(d) { Cache.restaurants = d; fillRestaurantSelect('userRestaurantSelect', d); })
-    .catch(function() { showAlert('userAlert','식당 목록을 불러오지 못했습니다','error'); });
+  if (Cache.restaurants) { fillRestaurantSelect('userRestaurantSelect',Cache.restaurants); return; }
+  gasCall({action:'getRestaurants'})
+    .then(function(d){ Cache.restaurants=d; fillRestaurantSelect('userRestaurantSelect',d); })
+    .catch(function(){ showAlert('userAlert','식당 목록을 불러오지 못했습니다','error'); });
 }
 function fillMenuSelect(selectId, menus) {
-  var s = document.getElementById(selectId);
-  s.innerHTML = '<option value="">메뉴를 선택하세요</option>';
-  menus.forEach(function(menu) {
-    var opt = document.createElement('option');
-    opt.value = menu.id;
-    opt.textContent = menu.name + (menu.price > 0 ? '  ' + menu.price.toLocaleString() + '원' : '');
-    opt.dataset.price = menu.price; opt.dataset.menuName = menu.name; s.appendChild(opt);
+  var s=document.getElementById(selectId);
+  s.innerHTML='<option value="">메뉴를 선택하세요</option>';
+  menus.forEach(function(menu){
+    var opt=document.createElement('option');
+    opt.value=menu.id; opt.textContent=menu.name+(menu.price>0?'  '+menu.price.toLocaleString()+'원':'');
+    opt.dataset.price=menu.price; opt.dataset.menuName=menu.name; s.appendChild(opt);
   });
 }
 function loadMenusForUser() {
-  var rId = document.getElementById('userRestaurantSelect').value;
-  document.getElementById('userMenuSelect').innerHTML = '<option value="">메뉴를 선택하세요</option>';
+  var rId=document.getElementById('userRestaurantSelect').value;
+  document.getElementById('userMenuSelect').innerHTML='<option value="">메뉴를 선택하세요</option>';
   resetPriceDisplay(); if (!rId) return;
-  if (Cache.menus[rId]) { fillMenuSelect('userMenuSelect', Cache.menus[rId]); return; }
-  gasCall({ action: 'getMenus', restaurantId: rId })
-    .then(function(menus) { Cache.menus[rId] = menus; fillMenuSelect('userMenuSelect', menus); })
-    .catch(function() { showAlert('userAlert','메뉴를 불러오지 못했습니다','error'); });
+  if (Cache.menus[rId]) { fillMenuSelect('userMenuSelect',Cache.menus[rId]); return; }
+  gasCall({action:'getMenus', restaurantId:rId})
+    .then(function(menus){ Cache.menus[rId]=menus; fillMenuSelect('userMenuSelect',menus); })
+    .catch(function(){ showAlert('userAlert','메뉴를 불러오지 못했습니다','error'); });
 }
 function onMenuSelected() {
-  var s = document.getElementById('userMenuSelect');
-  updatePriceDisplay(s.options[s.selectedIndex] ? Number(s.options[s.selectedIndex].dataset.price)||0 : 0);
+  var s=document.getElementById('userMenuSelect');
+  updatePriceDisplay(s.options[s.selectedIndex]?Number(s.options[s.selectedIndex].dataset.price)||0:0);
 }
 function updatePriceDisplay(price) {
-  var d = document.getElementById('userPriceDisplay');
-  document.getElementById('userPrice').value = price;
-  if (price > 0) { d.textContent = price.toLocaleString()+'원'; d.className='price-display has-value'; }
+  var d=document.getElementById('userPriceDisplay');
+  document.getElementById('userPrice').value=price;
+  if (price>0) { d.textContent=price.toLocaleString()+'원'; d.className='price-display has-value'; }
   else { d.textContent='메뉴를 선택하면 금액이 표시됩니다'; d.className='price-display'; }
 }
 function resetPriceDisplay() { updatePriceDisplay(0); }
@@ -987,174 +940,176 @@ function handleUserOrder() {
   if (!rId||!mSelect.value) { showAlert('userAlert','식당과 메뉴를 선택하세요','error'); return; }
   if (price<=0) { showAlert('userAlert','메뉴 금액이 등록되어 있지 않습니다. 관리자에게 문의하세요','error'); return; }
   showLoading('userAlert');
-  gasCall({ action:'addOrder', userId:currentUser.userId, userName:currentUser.name, department:currentUser.department, restaurantId:rId, restaurantName:rName, menuName:menuName, price:price })
-    .then(function(r) {
+  gasCall({action:'addOrder', userId:currentUser.userId, userName:currentUser.name, department:currentUser.department, restaurantId:rId, restaurantName:rName, menuName:menuName, price:price})
+    .then(function(r){
       if (r.success) showAlert('userAlert','주문이 등록되었습니다','success');
       else showAlert('userAlert','주문 등록 중 오류가 발생했습니다','error');
-    })
-    .catch(function() { showAlert('userAlert','주문 등록 중 오류가 발생했습니다','error'); });
+    }).catch(function(){ showAlert('userAlert','주문 등록 중 오류가 발생했습니다','error'); });
 }
 
-// ============================================================
-// 어드민
-// ============================================================
 function loadTodayOrders() {
   if (!adminRestaurantId) { document.getElementById('todayOrdersContent').innerHTML=errorHtml('배정된 식당이 없습니다.'); return; }
-  document.getElementById('todayOrdersContent').innerHTML = loadingHtml();
-  gasCall({ action: 'getTodayOrders', restaurantId: adminRestaurantId })
-    .then(function(r) { displayOrders('todayOrdersContent', r.orders, r.totalAmount, '당일'); })
-    .catch(function() { document.getElementById('todayOrdersContent').innerHTML=errorHtml('주문 현황을 불러오지 못했습니다'); });
+  document.getElementById('todayOrdersContent').innerHTML=loadingHtml();
+  gasCall({action:'getTodayOrders', restaurantId:adminRestaurantId})
+    .then(function(r){ displayOrders('todayOrdersContent',r.orders,r.totalAmount,'당일'); })
+    .catch(function(){ document.getElementById('todayOrdersContent').innerHTML=errorHtml('주문 현황을 불러오지 못했습니다'); });
 }
 function loadPeriodOrders() {
   if (!adminRestaurantId) { showAlert('adminAlert','배정된 식당이 없습니다','error'); return; }
   var startDate=document.getElementById('adminStartDate').value, endDate=document.getElementById('adminEndDate').value;
   if (!startDate||!endDate) { showAlert('adminAlert','조회 기간을 선택하세요','error'); return; }
-  document.getElementById('periodOrdersContent').innerHTML = loadingHtml();
-  gasCall({ action:'getOrdersByPeriod', restaurantId:adminRestaurantId, startDate:startDate, endDate:endDate })
-    .then(function(r) { displayOrders('periodOrdersContent', r.orders, r.totalAmount, '기간'); })
-    .catch(function() { document.getElementById('periodOrdersContent').innerHTML=errorHtml('주문 내역을 불러오지 못했습니다'); });
+  document.getElementById('periodOrdersContent').innerHTML=loadingHtml();
+  gasCall({action:'getOrdersByPeriod', restaurantId:adminRestaurantId, startDate:startDate, endDate:endDate})
+    .then(function(r){ displayOrders('periodOrdersContent',r.orders,r.totalAmount,'기간'); })
+    .catch(function(){ document.getElementById('periodOrdersContent').innerHTML=errorHtml('주문 내역을 불러오지 못했습니다'); });
 }
 function displayOrders(containerId, orders, totalAmount, label) {
-  var container = document.getElementById(containerId);
+  var container=document.getElementById(containerId);
   if (!orders||orders.length===0) { container.innerHTML='<div class="empty-state"><div class="empty-state-icon">📭</div><p>'+label+' 주문 내역이 없습니다</p></div>'; return; }
   var menuMap={};
-  orders.forEach(function(o) { if (!menuMap[o.menuName]) menuMap[o.menuName]={count:0,total:0}; menuMap[o.menuName].count++; menuMap[o.menuName].total+=Number(o.price); });
+  orders.forEach(function(o){ if(!menuMap[o.menuName]) menuMap[o.menuName]={count:0,total:0}; menuMap[o.menuName].count++; menuMap[o.menuName].total+=Number(o.price); });
   var html='<div class="table-wrap"><table><colgroup><col class="col-name"><col class="col-dept"><col class="col-menu"><col class="col-price"><col class="col-date"></colgroup>';
   html+='<thead><tr><th>이름</th><th>부서</th><th>메뉴</th><th>금액</th><th>주문일시</th></tr></thead><tbody>';
-  orders.forEach(function(o) {
+  orders.forEach(function(o){
     var dt=new Date(o.orderDate);
-    var dateStr=(dt.getMonth()+1)+'/'+dt.getDate()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
-    html+='<tr><td>'+o.userName+'</td><td>'+o.department+'</td><td>'+o.menuName+'</td><td>'+Number(o.price).toLocaleString()+'원</td><td>'+dateStr+'</td></tr>';
+    var ds=(dt.getMonth()+1)+'/'+dt.getDate()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+    html+='<tr><td>'+o.userName+'</td><td>'+o.department+'</td><td>'+o.menuName+'</td><td>'+Number(o.price).toLocaleString()+'원</td><td>'+ds+'</td></tr>';
   });
   html+='</tbody></table></div><div class="summary-box"><h4>📋 메뉴별 집계</h4>';
-  Object.keys(menuMap).forEach(function(m) { html+='<div class="summary-row"><span>'+m+'<span class="summary-count">×'+menuMap[m].count+'</span></span><span>'+menuMap[m].total.toLocaleString()+'원</span></div>'; });
+  Object.keys(menuMap).forEach(function(m){ html+='<div class="summary-row"><span>'+m+'<span class="summary-count">×'+menuMap[m].count+'</span></span><span>'+menuMap[m].total.toLocaleString()+'원</span></div>'; });
   html+='<div class="summary-row total"><span>합계 <span class="summary-count">('+orders.length+'건)</span></span><span>'+totalAmount.toLocaleString()+'원</span></div></div>';
-  container.innerHTML = html;
+  container.innerHTML=html;
 }
 
-// ============================================================
-// 마스터 - 식당
-// ============================================================
 function renderRestaurantTable(restaurants) {
   var c=document.getElementById('restaurantsContent');
   if (!restaurants||restaurants.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">🏪</div><p>등록된 식당이 없습니다</p></div>'; return; }
   var html='<div class="table-wrap"><table><colgroup><col class="col-rname"><col class="col-act"></colgroup><thead><tr><th>식당 이름</th><th>삭제</th></tr></thead><tbody>';
-  restaurants.forEach(function(r) { html+='<tr><td><strong>'+r.name+'</strong></td><td><button class="btn btn-danger btn-small" onclick="deleteRestaurant(''+r.id+'')">삭제</button></td></tr>'; });
+  restaurants.forEach(function(r){
+    html+='<tr><td><strong>'+r.name+'</strong></td><td>';
+    html+='<button class="btn btn-danger btn-small" onclick="deleteRestaurant(this.dataset.id)" data-id="'+r.id+'">삭제</button>';
+    html+='</td></tr>';
+  });
   html+='</tbody></table></div>'; c.innerHTML=html;
 }
 function loadRestaurantsForMaster() {
   if (Cache.restaurants) { renderRestaurantTable(Cache.restaurants); return; }
   document.getElementById('restaurantsContent').innerHTML=loadingHtml();
-  gasCall({ action:'getRestaurants' }).then(function(d) { Cache.restaurants=d; renderRestaurantTable(d); })
-    .catch(function() { document.getElementById('restaurantsContent').innerHTML=errorHtml('식당 목록을 불러오지 못했습니다'); });
+  gasCall({action:'getRestaurants'}).then(function(d){ Cache.restaurants=d; renderRestaurantTable(d); })
+    .catch(function(){ document.getElementById('restaurantsContent').innerHTML=errorHtml('식당 목록을 불러오지 못했습니다'); });
 }
 function handleAddRestaurant() {
   var name=document.getElementById('newRestaurantName').value.trim();
   if (!name) { showAlert('restaurantAlert','식당 이름을 입력하세요','error'); return; }
-  gasCall({ action:'addRestaurant', name:name })
-    .then(function(r) {
+  gasCall({action:'addRestaurant', name:name})
+    .then(function(r){
       if (r.success) { Cache.clearRestaurants(); showAlert('restaurantAlert','식당이 추가되었습니다','success'); document.getElementById('newRestaurantName').value=''; loadRestaurantsForMaster(); }
       else showAlert('restaurantAlert','식당 추가 중 오류가 발생했습니다','error');
-    }).catch(function() { showAlert('restaurantAlert','오류가 발생했습니다','error'); });
+    }).catch(function(){ showAlert('restaurantAlert','오류가 발생했습니다','error'); });
 }
 function deleteRestaurant(rId) {
   if (!confirm('이 식당을 삭제하시겠습니까?')) return;
-  gasCall({ action:'deleteRestaurant', restaurantId:rId })
-    .then(function(r) {
+  gasCall({action:'deleteRestaurant', restaurantId:rId})
+    .then(function(r){
       if (r.success) { Cache.clearRestaurants(); showAlert('restaurantAlert','식당이 삭제되었습니다','success'); loadRestaurantsForMaster(); }
-      else showAlert('restaurantAlert', r.message, 'error');
-    }).catch(function() { showAlert('restaurantAlert','오류가 발생했습니다','error'); });
+      else showAlert('restaurantAlert',r.message,'error');
+    }).catch(function(){ showAlert('restaurantAlert','오류가 발생했습니다','error'); });
 }
 
-// ============================================================
-// 마스터 - 메뉴
-// ============================================================
 function loadRestaurantSelectForMenu() {
-  if (Cache.restaurants) { fillRestaurantSelect('menuRestaurantSelect', Cache.restaurants); return; }
-  gasCall({ action:'getRestaurants' }).then(function(d) { Cache.restaurants=d; fillRestaurantSelect('menuRestaurantSelect', d); });
+  if (Cache.restaurants) { fillRestaurantSelect('menuRestaurantSelect',Cache.restaurants); return; }
+  gasCall({action:'getRestaurants'}).then(function(d){ Cache.restaurants=d; fillRestaurantSelect('menuRestaurantSelect',d); });
 }
 function renderMenuTable(menus) {
   var c=document.getElementById('menusContent');
   if (!menus||menus.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">📋</div><p>등록된 메뉴가 없습니다</p></div>'; return; }
   var html='<div class="table-wrap"><table><colgroup><col class="col-mname"><col class="col-mprice"><col class="col-mact"></colgroup><thead><tr><th>메뉴 이름</th><th>금액</th><th>액션</th></tr></thead><tbody>';
-  menus.forEach(function(menu) {
-    html+='<tr id="menu-row-'+menu.id+'"><td>'+menu.name+'</td><td style="font-weight:600;color:#667eea;">'+(menu.price>0?menu.price.toLocaleString()+'원':'-')+'</td>';
-    html+='<td><button class="btn btn-warning btn-small" style="margin-right:4px;margin-bottom:4px;" onclick="showMenuEditRow(''+menu.id+'')">수정</button>';
-    html+='<button class="btn btn-danger btn-small" onclick="deleteMenu(''+menu.id+'')">삭제</button></td></tr>';
+  menus.forEach(function(menu){
+    html+='<tr id="menu-row-'+menu.id+'">';
+    html+='<td>'+menu.name+'</td>';
+    html+='<td style="font-weight:600;color:#667eea;">'+(menu.price>0?menu.price.toLocaleString()+'원':'-')+'</td>';
+    html+='<td>';
+    html+='<button class="btn btn-warning btn-small" style="margin-right:4px;margin-bottom:4px;" onclick="showMenuEditRow(this.dataset.id)" data-id="'+menu.id+'">수정</button>';
+    html+='<button class="btn btn-danger btn-small" onclick="deleteMenu(this.dataset.id)" data-id="'+menu.id+'">삭제</button>';
+    html+='</td></tr>';
     html+='<tr id="menu-edit-'+menu.id+'" class="hidden"><td colspan="3"><div class="menu-edit-row">';
-    html+='<div class="form-group" style="margin-bottom:8px;"><label>메뉴 이름</label><input type="text" id="edit-name-'+menu.id+'" value="'+escStr(menu.name)+'"></div>';
+    html+='<div class="form-group" style="margin-bottom:8px;"><label>메뉴 이름</label><input type="text" id="edit-name-'+menu.id+'" value="'+menu.name.replace(/"/g,'&quot;')+'"></div>';
     html+='<div class="form-group" style="margin-bottom:8px;"><label>금액 (원)</label><input type="number" id="edit-price-'+menu.id+'" value="'+menu.price+'" min="0" inputmode="numeric"></div>';
-    html+='<div class="menu-edit-actions"><button class="btn btn-primary btn-small" onclick="handleUpdateMenu(''+menu.id+'')">저장</button>';
-    html+='<button class="btn btn-secondary btn-small" onclick="hideMenuEditRow(''+menu.id+'')">취소</button></div></div></td></tr>';
+    html+='<div class="menu-edit-actions">';
+    html+='<button class="btn btn-primary btn-small" onclick="handleUpdateMenu(this.dataset.id)" data-id="'+menu.id+'">저장</button>';
+    html+='<button class="btn btn-secondary btn-small" onclick="hideMenuEditRow(this.dataset.id)" data-id="'+menu.id+'">취소</button>';
+    html+='</div></div></td></tr>';
   });
   html+='</tbody></table></div>'; c.innerHTML=html;
 }
-function escStr(s) { return String(s).replace(/\/g,'\\').replace(/'/g,"\'").replace(/"/g,'&quot;'); }
-function showMenuEditRow(menuId) { document.querySelectorAll('[id^="menu-edit-"]').forEach(function(el){el.classList.add('hidden');}); document.getElementById('menu-edit-'+menuId).classList.remove('hidden'); document.getElementById('edit-name-'+menuId).focus(); }
+function showMenuEditRow(menuId) {
+  document.querySelectorAll('[id^="menu-edit-"]').forEach(function(el){el.classList.add('hidden');});
+  document.getElementById('menu-edit-'+menuId).classList.remove('hidden');
+  document.getElementById('edit-name-'+menuId).focus();
+}
 function hideMenuEditRow(menuId) { document.getElementById('menu-edit-'+menuId).classList.add('hidden'); }
 function handleUpdateMenu(menuId) {
-  var newName=document.getElementById('edit-name-'+menuId).value.trim(), newPrice=Number(document.getElementById('edit-price-'+menuId).value);
+  var newName=document.getElementById('edit-name-'+menuId).value.trim();
+  var newPrice=Number(document.getElementById('edit-price-'+menuId).value);
   if (!newName) { showAlert('menuAlert','메뉴 이름을 입력하세요','error'); return; }
   if (newPrice<=0) { showAlert('menuAlert','금액을 입력하세요','error'); return; }
-  gasCall({ action:'updateMenu', menuId:menuId, name:newName, price:newPrice })
-    .then(function(r) {
+  gasCall({action:'updateMenu', menuId:menuId, name:newName, price:newPrice})
+    .then(function(r){
       if (r.success) { Cache.clearMenus(document.getElementById('menuRestaurantSelect').value); showAlert('menuAlert','메뉴가 수정되었습니다','success'); loadMenusForMaster(); }
-      else showAlert('menuAlert', r.message||'수정 중 오류', 'error');
-    }).catch(function() { showAlert('menuAlert','수정 중 오류가 발생했습니다','error'); });
+      else showAlert('menuAlert',r.message||'수정 중 오류','error');
+    }).catch(function(){ showAlert('menuAlert','수정 중 오류가 발생했습니다','error'); });
 }
 function loadMenusForMaster() {
   var rId=document.getElementById('menuRestaurantSelect').value;
   if (!rId) { document.getElementById('menusContent').innerHTML='<div class="empty-state"><div class="empty-state-icon">🍔</div><p>식당을 선택하면 메뉴 목록이 표시됩니다</p></div>'; return; }
   if (Cache.menus[rId]) { renderMenuTable(Cache.menus[rId]); return; }
   document.getElementById('menusContent').innerHTML=loadingHtml();
-  gasCall({ action:'getMenus', restaurantId:rId })
-    .then(function(menus) { Cache.menus[rId]=menus; renderMenuTable(menus); })
-    .catch(function() { document.getElementById('menusContent').innerHTML=errorHtml('메뉴를 불러오지 못했습니다'); });
+  gasCall({action:'getMenus', restaurantId:rId})
+    .then(function(menus){ Cache.menus[rId]=menus; renderMenuTable(menus); })
+    .catch(function(){ document.getElementById('menusContent').innerHTML=errorHtml('메뉴를 불러오지 못했습니다'); });
 }
 function handleAddMenu() {
-  var rId=document.getElementById('menuRestaurantSelect').value, menuName=document.getElementById('newMenuName').value.trim();
+  var rId=document.getElementById('menuRestaurantSelect').value;
+  var menuName=document.getElementById('newMenuName').value.trim();
   var menuPrice=Number(document.getElementById('newMenuPrice').value)||0;
   if (!rId) { showAlert('menuAlert','식당을 선택하세요','error'); return; }
   if (!menuName) { showAlert('menuAlert','메뉴 이름을 입력하세요','error'); return; }
   if (menuPrice<=0) { showAlert('menuAlert','금액을 입력하세요','error'); return; }
-  gasCall({ action:'addMenu', restaurantId:rId, name:menuName, price:menuPrice })
-    .then(function(r) {
+  gasCall({action:'addMenu', restaurantId:rId, name:menuName, price:menuPrice})
+    .then(function(r){
       if (r.success) { Cache.clearMenus(rId); showAlert('menuAlert','메뉴가 추가되었습니다','success'); document.getElementById('newMenuName').value=''; document.getElementById('newMenuPrice').value=''; loadMenusForMaster(); }
       else showAlert('menuAlert','메뉴 추가 중 오류가 발생했습니다','error');
-    }).catch(function() { showAlert('menuAlert','오류가 발생했습니다','error'); });
+    }).catch(function(){ showAlert('menuAlert','오류가 발생했습니다','error'); });
 }
 function deleteMenu(menuId) {
   if (!confirm('이 메뉴를 삭제하시겠습니까?')) return;
-  gasCall({ action:'deleteMenu', menuId:menuId })
-    .then(function(r) {
+  gasCall({action:'deleteMenu', menuId:menuId})
+    .then(function(r){
       if (r.success) { Cache.clearMenus(); showAlert('menuAlert','메뉴가 삭제되었습니다','success'); loadMenusForMaster(); }
-      else showAlert('menuAlert', r.message, 'error');
-    }).catch(function() { showAlert('menuAlert','오류가 발생했습니다','error'); });
+      else showAlert('menuAlert',r.message,'error');
+    }).catch(function(){ showAlert('menuAlert','오류가 발생했습니다','error'); });
 }
 
-// ============================================================
-// 마스터 - 통계
-// ============================================================
 function loadDeptSelectForStats() {
   var sel=document.getElementById('statsDeptFilter'); if (!sel) return;
   if (Cache.departments) { fillDeptSelectForStats(Cache.departments); return; }
-  gasCall({ action:'getDepartments' }).then(function(d) { Cache.departments=d; fillDeptSelectForStats(d); }).catch(function(){});
+  gasCall({action:'getDepartments'}).then(function(d){ Cache.departments=d; fillDeptSelectForStats(d); }).catch(function(){});
 }
 function fillDeptSelectForStats(depts) {
   var sel=document.getElementById('statsDeptFilter'); if (!sel) return;
   sel.innerHTML='<option value="">전체 부서</option>';
-  depts.forEach(function(d) { var opt=document.createElement('option'); opt.value=d; opt.textContent=d; sel.appendChild(opt); });
+  depts.forEach(function(d){ var opt=document.createElement('option'); opt.value=d; opt.textContent=d; sel.appendChild(opt); });
 }
 function loadRestaurantButtonsForStats() {
   if (Cache.restaurants) { renderRestaurantButtons(Cache.restaurants); return; }
   document.getElementById('restaurantButtonsContainer').innerHTML=loadingHtml();
-  gasCall({ action:'getRestaurants' }).then(function(d) { Cache.restaurants=d; renderRestaurantButtons(d); });
+  gasCall({action:'getRestaurants'}).then(function(d){ Cache.restaurants=d; renderRestaurantButtons(d); });
 }
 function renderRestaurantButtons(restaurants) {
   var c=document.getElementById('restaurantButtonsContainer');
   if (!restaurants||restaurants.length===0) { c.innerHTML='<div class="empty-state"><p>등록된 식당이 없습니다</p></div>'; return; }
-  var html='<div class="restaurant-buttons"><button class="btn btn-all active" onclick="selectRestaurantForStats('all', this)">🏪 전체 조회</button>';
-  restaurants.forEach(function(r) { html+='<button class="btn btn-secondary" onclick="selectRestaurantForStats(''+r.id+'', this)">'+r.name+'</button>'; });
+  var html='<div class="restaurant-buttons"><button class="btn btn-all active" onclick="selectRestaurantForStats(\'all\', this)">🏪 전체 조회</button>';
+  restaurants.forEach(function(r){ html+='<button class="btn btn-secondary" onclick="selectRestaurantForStats(\''+r.id+'\', this)">'+r.name+'</button>'; });
   html+='</div>'; c.innerHTML=html; selectedRestaurantId='all';
 }
 function selectRestaurantForStats(rId, btn) {
@@ -1165,17 +1120,17 @@ function loadRestaurantStats() {
   if (!startDate||!endDate) { showAlert('statsAlert','조회 기간을 선택하세요','error'); return; }
   document.getElementById('statsContent').innerHTML=loadingHtml();
   if (selectedRestaurantId==='all') {
-    gasCall({ action:'getAllRestaurantOrders', startDate:startDate, endDate:endDate }).then(displayAllRestaurantStats)
-      .catch(function() { document.getElementById('statsContent').innerHTML=errorHtml('통계를 불러오지 못했습니다'); });
+    gasCall({action:'getAllRestaurantOrders', startDate:startDate, endDate:endDate}).then(displayAllRestaurantStats)
+      .catch(function(){ document.getElementById('statsContent').innerHTML=errorHtml('통계를 불러오지 못했습니다'); });
   } else {
-    gasCall({ action:'getOrdersByPeriod', restaurantId:selectedRestaurantId, startDate:startDate, endDate:endDate }).then(displaySingleRestaurantStats)
-      .catch(function() { document.getElementById('statsContent').innerHTML=errorHtml('통계를 불러오지 못했습니다'); });
+    gasCall({action:'getOrdersByPeriod', restaurantId:selectedRestaurantId, startDate:startDate, endDate:endDate}).then(displaySingleRestaurantStats)
+      .catch(function(){ document.getElementById('statsContent').innerHTML=errorHtml('통계를 불러오지 못했습니다'); });
   }
 }
 function buildOrderTable(orders) {
   var html='<div class="table-wrap"><table><colgroup><col class="col-name"><col class="col-dept"><col class="col-menu"><col class="col-price"><col class="col-date"></colgroup>';
   html+='<thead><tr><th>이름</th><th>부서</th><th>메뉴</th><th>금액</th><th>주문일시</th></tr></thead><tbody>';
-  orders.forEach(function(o) {
+  orders.forEach(function(o){
     var dt=new Date(o.orderDate);
     var ds=(dt.getMonth()+1)+'/'+dt.getDate()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
     html+='<tr><td>'+o.userName+'</td><td>'+o.department+'</td><td>'+o.menuName+'</td><td>'+Number(o.price).toLocaleString()+'원</td><td>'+ds+'</td></tr>';
@@ -1184,17 +1139,17 @@ function buildOrderTable(orders) {
 }
 function buildDeptSummaryBox(orders, totalAmount, deptFilter) {
   var menuMap={};
-  orders.forEach(function(o) { if (!menuMap[o.menuName]) menuMap[o.menuName]={count:0,total:0}; menuMap[o.menuName].count++; menuMap[o.menuName].total+=Number(o.price); });
+  orders.forEach(function(o){ if(!menuMap[o.menuName]) menuMap[o.menuName]={count:0,total:0}; menuMap[o.menuName].count++; menuMap[o.menuName].total+=Number(o.price); });
   var html='<div class="summary-box"><h4>📋 메뉴별 집계'+(deptFilter?' · '+deptFilter:'')+'</h4>';
-  Object.keys(menuMap).forEach(function(m) { html+='<div class="summary-row"><span>'+m+'<span class="summary-count"> ×'+menuMap[m].count+'</span></span><span>'+menuMap[m].total.toLocaleString()+'원</span></div>'; });
+  Object.keys(menuMap).forEach(function(m){ html+='<div class="summary-row"><span>'+m+'<span class="summary-count"> ×'+menuMap[m].count+'</span></span><span>'+menuMap[m].total.toLocaleString()+'원</span></div>'; });
   html+='<div class="summary-row total"><span>합계 <span class="summary-count">('+orders.length+'건)</span></span><span>'+totalAmount.toLocaleString()+'원</span></div></div>';
   if (!deptFilter) {
     var deptMap={};
-    orders.forEach(function(o) { if (!deptMap[o.department]) deptMap[o.department]={count:0,total:0}; deptMap[o.department].count++; deptMap[o.department].total+=Number(o.price); });
+    orders.forEach(function(o){ if(!deptMap[o.department]) deptMap[o.department]={count:0,total:0}; deptMap[o.department].count++; deptMap[o.department].total+=Number(o.price); });
     var depts=Object.keys(deptMap);
     if (depts.length>1) {
       html+='<div class="summary-box" style="background:#f0f9ff;border-color:#bae6fd;margin-top:8px;"><h4>🏢 부서별 집계</h4>';
-      depts.sort().forEach(function(d) { html+='<div class="summary-row"><span>'+d+'<span class="summary-count"> ×'+deptMap[d].count+'</span></span><span>'+deptMap[d].total.toLocaleString()+'원</span></div>'; });
+      depts.sort().forEach(function(d){ html+='<div class="summary-row"><span>'+d+'<span class="summary-count"> ×'+deptMap[d].count+'</span></span><span>'+deptMap[d].total.toLocaleString()+'원</span></div>'; });
       html+='</div>';
     }
   }
@@ -1203,14 +1158,14 @@ function buildDeptSummaryBox(orders, totalAmount, deptFilter) {
 function displayAllRestaurantStats(stats) {
   var c=document.getElementById('statsContent'), deptFilter=document.getElementById('statsDeptFilter').value;
   if (!stats||stats.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">📊</div><p>해당 기간에 주문 내역이 없습니다</p></div>'; return; }
-  var filtered=stats.map(function(stat) {
+  var filtered=stats.map(function(stat){
     var fo=deptFilter?stat.orders.filter(function(o){return o.department===deptFilter;}):stat.orders;
-    return { restaurantName:stat.restaurantName, orders:fo, totalAmount:fo.reduce(function(s,o){return s+Number(o.price);},0) };
+    return {restaurantName:stat.restaurantName, orders:fo, totalAmount:fo.reduce(function(s,o){return s+Number(o.price);},0)};
   }).filter(function(s){return s.orders.length>0;});
   if (filtered.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">📭</div><p>주문 내역이 없습니다</p></div>'; return; }
   var filterLabel=deptFilter?' · <span style="color:#667eea;font-size:14px;">🏢 '+deptFilter+'</span>':'';
   var html='', grand=0;
-  filtered.forEach(function(stat) { grand+=stat.totalAmount; html+='<div class="card" style="background:#f9fafb;"><h3>'+stat.restaurantName+filterLabel+'</h3>'+buildOrderTable(stat.orders)+buildDeptSummaryBox(stat.orders,stat.totalAmount,deptFilter)+'</div>'; });
+  filtered.forEach(function(stat){ grand+=stat.totalAmount; html+='<div class="card" style="background:#f9fafb;"><h3>'+stat.restaurantName+filterLabel+'</h3>'+buildOrderTable(stat.orders)+buildDeptSummaryBox(stat.orders,stat.totalAmount,deptFilter)+'</div>'; });
   var allOrders=[]; filtered.forEach(function(s){allOrders=allOrders.concat(s.orders);});
   html+='<div class="card"><div class="summary-box" style="background:#dcfce7;border-color:#86efac;"><h4>🏪 전체 합계'+(deptFilter?' ('+deptFilter+')':'')+'</h4>';
   filtered.forEach(function(s){html+='<div class="summary-row"><span>'+s.restaurantName+'<span class="summary-count"> ('+s.orders.length+'건)</span></span><span>'+s.totalAmount.toLocaleString()+'원</span></div>';});
@@ -1226,41 +1181,41 @@ function displaySingleRestaurantStats(result) {
   c.innerHTML='<div class="card">'+(deptFilter?'<div style="margin-bottom:10px;font-size:14px;color:#667eea;font-weight:600;">🏢 '+deptFilter+' 부서 필터 적용 중</div>':'')+buildOrderTable(orders)+buildDeptSummaryBox(orders,totalAmount,deptFilter)+'</div>';
 }
 
-// ============================================================
-// 마스터 - 회원
-// ============================================================
 function toggleRestaurantSelect() {
   var role=document.getElementById('newMemberRole').value, grp=document.getElementById('memberRestaurantGroup');
   if (role==='admin') grp.classList.remove('hidden'); else grp.classList.add('hidden');
 }
 function loadRestaurantSelectForMember() {
-  if (Cache.restaurants) { fillRestaurantSelect('newMemberRestaurant', Cache.restaurants); return; }
-  gasCall({ action:'getRestaurants' }).then(function(d) { Cache.restaurants=d; fillRestaurantSelect('newMemberRestaurant', d); });
+  if (Cache.restaurants) { fillRestaurantSelect('newMemberRestaurant',Cache.restaurants); return; }
+  gasCall({action:'getRestaurants'}).then(function(d){ Cache.restaurants=d; fillRestaurantSelect('newMemberRestaurant',d); });
 }
 function checkMemberUserId() {
   var userId=document.getElementById('newMemberUserId').value.trim();
   if (!userId) { showAlert('membersAlert','아이디를 입력하세요','error'); return; }
-  gasCall({ action:'checkUserId', userId:userId })
-    .then(function(r) { showAlert('membersAlert', r.message, r.available?'success':'error'); memberIdChecked=r.available; });
+  gasCall({action:'checkUserId', userId:userId})
+    .then(function(r){ showAlert('membersAlert',r.message,r.available?'success':'error'); memberIdChecked=r.available; });
 }
 function handleAddMember() {
-  var userId=document.getElementById('newMemberUserId').value.trim(), password=document.getElementById('newMemberPassword').value;
-  var name=document.getElementById('newMemberName').value.trim(), dept=document.getElementById('newMemberDept').value;
-  var email=document.getElementById('newMemberEmail').value.trim(), role=document.getElementById('newMemberRole').value;
+  var userId=document.getElementById('newMemberUserId').value.trim();
+  var password=document.getElementById('newMemberPassword').value;
+  var name=document.getElementById('newMemberName').value.trim();
+  var dept=document.getElementById('newMemberDept').value;
+  var email=document.getElementById('newMemberEmail').value.trim();
+  var role=document.getElementById('newMemberRole').value;
   var restaurantId=document.getElementById('newMemberRestaurant').value;
   if (!userId||!password||!name||!dept) { showAlert('membersAlert','아이디, 비밀번호, 이름, 부서는 필수 입력 항목입니다','error'); return; }
   if (!memberIdChecked) { showAlert('membersAlert','아이디 중복 확인을 해주세요','error'); return; }
   if (role==='admin'&&!restaurantId) { showAlert('membersAlert','식당 관리자는 배정 식당을 선택해야 합니다','error'); return; }
   showLoading('membersAlert');
-  gasCall({ action:'addMemberByMaster', userId:userId, password:password, name:name, department:dept, email:email, role:role, restaurantId:restaurantId })
-    .then(function(r) {
+  gasCall({action:'addMemberByMaster', userId:userId, password:password, name:name, department:dept, email:email, role:role, restaurantId:restaurantId})
+    .then(function(r){
       if (r.success) {
         Cache.clearMembers(); showAlert('membersAlert','회원이 추가되었습니다','success');
         ['newMemberUserId','newMemberPassword','newMemberName','newMemberEmail'].forEach(function(id){document.getElementById(id).value='';});
         document.getElementById('newMemberRole').value='user'; document.getElementById('memberRestaurantGroup').classList.add('hidden');
         memberIdChecked=false; loadMembers();
-      } else showAlert('membersAlert', r.message, 'error');
-    }).catch(function() { showAlert('membersAlert','회원 추가 중 오류가 발생했습니다','error'); });
+      } else showAlert('membersAlert',r.message,'error');
+    }).catch(function(){ showAlert('membersAlert','회원 추가 중 오류가 발생했습니다','error'); });
 }
 function renderMembersTable(members) {
   var c=document.getElementById('membersContent');
@@ -1269,12 +1224,12 @@ function renderMembersTable(members) {
   var rMap={}; if (Cache.restaurants) Cache.restaurants.forEach(function(r){rMap[r.id]=r.name;});
   var html='<div class="table-wrap"><table><colgroup><col class="col-uid"><col class="col-uname"><col class="col-udept"><col class="col-urole"><col class="col-urst"><col class="col-udel"></colgroup>';
   html+='<thead><tr><th>아이디</th><th>이름</th><th>부서</th><th>역할</th><th>식당</th><th>삭제</th></tr></thead><tbody>';
-  members.forEach(function(m) {
+  members.forEach(function(m){
     var rName=m.restaurantId?(rMap[m.restaurantId]||m.restaurantId):'-';
     html+='<tr><td>'+m.userId+'</td><td>'+m.name+'</td><td>'+m.department+'</td>';
     html+='<td><span class="member-role-badge '+(roleBadge[m.role]||'badge-user')+'">'+(roleLabel[m.role]||m.role)+'</span></td>';
     html+='<td style="font-size:11px;color:#6b7280;">'+rName+'</td>';
-    html+='<td>'+(m.role==='master'?'-':'<button class="btn btn-danger btn-small" onclick="deleteMember(''+m.userId+'',''+escStr(m.name)+'')">삭제</button>')+'</td></tr>';
+    html+='<td>'+(m.role==='master'?'-':'<button class="btn btn-danger btn-small" onclick="deleteMember(this.dataset.id)" data-id="'+m.userId+'">삭제</button>')+'</td></tr>';
   });
   html+='</tbody></table></div><p style="margin-top:10px;font-size:13px;color:#6b7280;text-align:right;">총 '+members.length+'명</p>';
   c.innerHTML=html;
@@ -1282,73 +1237,69 @@ function renderMembersTable(members) {
 function loadMembers() {
   if (Cache.members) { renderMembersTable(Cache.members); return; }
   document.getElementById('membersContent').innerHTML=loadingHtml();
-  gasCall({ action:'getMembers' }).then(function(d){Cache.members=d; renderMembersTable(d);})
-    .catch(function(){document.getElementById('membersContent').innerHTML=errorHtml('회원 목록을 불러오지 못했습니다');});
+  gasCall({action:'getMembers'}).then(function(d){ Cache.members=d; renderMembersTable(d); })
+    .catch(function(){ document.getElementById('membersContent').innerHTML=errorHtml('회원 목록을 불러오지 못했습니다'); });
 }
-function deleteMember(userId, name) {
-  if (!confirm(name+'님을 삭제하시겠습니까?')) return;
-  gasCall({ action:'deleteMember', userId:userId })
-    .then(function(r) {
+function deleteMember(userId) {
+  if (!confirm('이 회원을 삭제하시겠습니까?')) return;
+  gasCall({action:'deleteMember', userId:userId})
+    .then(function(r){
       if (r.success) { Cache.clearMembers(); showAlert('membersAlert','회원이 삭제되었습니다','success'); loadMembers(); }
-      else showAlert('membersAlert', r.message, 'error');
-    }).catch(function(){showAlert('membersAlert','삭제 중 오류가 발생했습니다','error');});
+      else showAlert('membersAlert',r.message,'error');
+    }).catch(function(){ showAlert('membersAlert','삭제 중 오류가 발생했습니다','error'); });
 }
 
-// ============================================================
-// 부서
-// ============================================================
 function loadDeptSelect(selectId) {
   var sel=document.getElementById(selectId); if (!sel) return;
-  if (Cache.departments) { fillDeptSelect(selectId, Cache.departments); return; }
+  if (Cache.departments) { fillDeptSelect(selectId,Cache.departments); return; }
   sel.innerHTML='<option value="">로딩 중...</option>';
-  gasCall({ action:'getDepartments' }).then(function(d){Cache.departments=d; fillDeptSelect(selectId,d);})
-    .catch(function(){sel.innerHTML='<option value="">불러오기 실패</option>';});
+  gasCall({action:'getDepartments'}).then(function(d){ Cache.departments=d; fillDeptSelect(selectId,d); })
+    .catch(function(){ sel.innerHTML='<option value="">불러오기 실패</option>'; });
 }
 function fillDeptSelect(selectId, depts) {
   var sel=document.getElementById(selectId); if (!sel) return;
   sel.innerHTML='<option value="">부서를 선택하세요</option>';
-  depts.forEach(function(d){var opt=document.createElement('option');opt.value=d;opt.textContent=d;sel.appendChild(opt);});
+  depts.forEach(function(d){ var opt=document.createElement('option'); opt.value=d; opt.textContent=d; sel.appendChild(opt); });
 }
 function loadDepartmentsForMaster() {
   if (Cache.departments) { renderDeptTable(Cache.departments); return; }
   document.getElementById('deptsContent').innerHTML=loadingHtml();
-  gasCall({ action:'getDepartments' }).then(function(d){Cache.departments=d;renderDeptTable(d);fillDeptSelect('newMemberDept',d);fillDeptSelect('registerDepartment',d);})
-    .catch(function(){document.getElementById('deptsContent').innerHTML=errorHtml('부서 목록을 불러오지 못했습니다');});
+  gasCall({action:'getDepartments'}).then(function(d){ Cache.departments=d; renderDeptTable(d); fillDeptSelect('newMemberDept',d); fillDeptSelect('registerDepartment',d); })
+    .catch(function(){ document.getElementById('deptsContent').innerHTML=errorHtml('부서 목록을 불러오지 못했습니다'); });
 }
 function renderDeptTable(depts) {
   var c=document.getElementById('deptsContent');
   if (!depts||depts.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">🏢</div><p>등록된 부서가 없습니다</p></div>'; return; }
   var html='<div class="table-wrap"><table><colgroup><col class="col-dname"><col class="col-ddel"></colgroup><thead><tr><th>부서 이름</th><th>삭제</th></tr></thead><tbody>';
-  depts.forEach(function(d){html+='<tr><td>'+d+'</td><td><button class="btn btn-danger btn-small" onclick="handleDeleteDepartment(''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'')" >삭제</button></td></tr>';});
+  depts.forEach(function(d){
+    html+='<tr><td>'+d+'</td><td><button class="btn btn-danger btn-small" onclick="handleDeleteDepartment(this.dataset.name)" data-name="'+d.replace(/"/g,'&quot;')+'">삭제</button></td></tr>';
+  });
   html+='</tbody></table></div>'; c.innerHTML=html;
 }
 function handleAddDepartment() {
   var name=document.getElementById('newDeptName').value.trim();
   if (!name) { showAlert('deptAlert','부서 이름을 입력하세요','error'); return; }
-  gasCall({ action:'addDepartment', name:name })
+  gasCall({action:'addDepartment', name:name})
     .then(function(r){
-      if (r.success){document.getElementById('newDeptName').value='';refreshDeptCache(function(){showAlert('deptAlert','부서가 추가되었습니다','success');});}
-      else{showAlert('deptAlert',r.message,'error');}
-    }).catch(function(){showAlert('deptAlert','오류가 발생했습니다','error');});
+      if (r.success) { document.getElementById('newDeptName').value=''; refreshDeptCache(function(){showAlert('deptAlert','부서가 추가되었습니다','success');}); }
+      else { showAlert('deptAlert',r.message,'error'); }
+    }).catch(function(){ showAlert('deptAlert','오류가 발생했습니다','error'); });
 }
 function handleDeleteDepartment(name) {
   if (!confirm(name+' 부서를 삭제하시겠습니까?')) return;
-  gasCall({ action:'deleteDepartment', name:name })
+  gasCall({action:'deleteDepartment', name:name})
     .then(function(r){
-      if (r.success){refreshDeptCache(function(){showAlert('deptAlert','부서가 삭제되었습니다','success');});}
-      else{showAlert('deptAlert',r.message,'error');}
-    }).catch(function(){showAlert('deptAlert','오류가 발생했습니다','error');});
+      if (r.success) { refreshDeptCache(function(){showAlert('deptAlert','부서가 삭제되었습니다','success');}); }
+      else { showAlert('deptAlert',r.message,'error'); }
+    }).catch(function(){ showAlert('deptAlert','오류가 발생했습니다','error'); });
 }
 function refreshDeptCache(callback) {
-  gasCall({ action:'getDepartments' }).then(function(d){
+  gasCall({action:'getDepartments'}).then(function(d){
     Cache.departments=d; renderDeptTable(d); fillDeptSelect('newMemberDept',d); fillDeptSelect('registerDepartment',d);
     if (callback) callback();
-  }).catch(function(){showAlert('deptAlert','목록 갱신 중 오류가 발생했습니다','error');});
+  }).catch(function(){ showAlert('deptAlert','목록 갱신 중 오류가 발생했습니다','error'); });
 }
 
-// ============================================================
-// 유틸리티
-// ============================================================
 function showAlert(containerId, message, type) {
   var c=document.getElementById(containerId); if (!c) return;
   var cls=type==='success'?'alert-success':type==='error'?'alert-error':'alert-info';
