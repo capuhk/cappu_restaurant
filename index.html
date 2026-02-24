@@ -696,25 +696,39 @@
 <script>
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbw0bZFhbAaB_9sIpI3cQ3x0DCL9iijrXVQbs9MEHTDtLEp5a3QfbDpiB9PCxQYKfUJ8Jw/exec';
 
+// ★ 보안 설정 - GAS의 API_SECRET_KEY와 반드시 동일하게 설정
+var API_SECRET_KEY = 'kolon-2024-SECURE-KEY-!@#$';
+
 var _cbIdx = 0;
 function gasCall(params) {
   return new Promise(function(resolve, reject) {
     var cbName = '_gas_' + (++_cbIdx) + '_' + Date.now();
     params.callback = cbName;
+    // ★ API 접근 토큰 자동 주입 (login/checkUserId/registerUser 제외)
+    var publicActions = ['login', 'checkUserId', 'registerUser'];
+    if (publicActions.indexOf(params.action) === -1) {
+      params.apiKey = API_SECRET_KEY;
+      if (sessionToken) params.sessionToken = sessionToken;
+    }
     var url = GAS_URL + '?' + Object.keys(params).map(function(k) {
       return encodeURIComponent(k) + '=' + encodeURIComponent(params[k] !== undefined ? params[k] : '');
     }).join('&');
     var script = document.createElement('script');
     var timer = setTimeout(function() { cleanup(); reject(new Error('timeout')); }, 15000);
     function cleanup() { clearTimeout(timer); delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); }
-    window[cbName] = function(data) { cleanup(); resolve(data); };
+    window[cbName] = function(data) {
+      cleanup();
+      // ★ 세션 만료 자동 감지
+      if (data && data.error === 'session_expired') { handleSessionExpired(); return; }
+      resolve(data);
+    };
     script.onerror = function() { cleanup(); reject(new Error('network error')); };
     script.src = url;
     document.head.appendChild(script);
   });
 }
 
-var currentUser = null, userIdChecked = false, memberIdChecked = false;
+var currentUser = null, sessionToken = null, userIdChecked = false, memberIdChecked = false;
 var selectedRestaurantId = 'all', adminRestaurantId = null;
 var Cache = {
   restaurants: null, menus: {}, members: null, departments: null,
@@ -866,7 +880,9 @@ function handleLogin() {
   gasCall({action:'login', userId:userId, password:password})
     .then(function(result) {
       if (result.success) {
-        currentUser=result.user; saveCredentials(userId,password,rememberMe);
+        currentUser=result.user;
+        sessionToken=result.sessionToken||null; // ★ 세션 토큰 저장
+        saveCredentials(userId,password,rememberMe);
         if (currentUser.role==='master') showMasterScreen();
         else if (currentUser.role==='admin') showAdminScreen();
         else showUserScreen();
@@ -874,7 +890,19 @@ function handleLogin() {
     })
     .catch(function(){ showAlert('loginAlert','로그인 중 오류가 발생했습니다.','error'); });
 }
-function handleLogout() { currentUser=null; adminRestaurantId=null; Cache.clear(); showLoginScreen(); }
+function handleLogout() {
+  if (sessionToken) {
+    gasCall({action:'logout', sessionToken:sessionToken}).catch(function(){});
+  }
+  currentUser=null; sessionToken=null; adminRestaurantId=null; Cache.clear(); showLoginScreen();
+}
+
+// ★ 세션 만료 처리 - 모든 API 응답에서 session_expired 감지
+function handleSessionExpired() {
+  currentUser=null; sessionToken=null; adminRestaurantId=null; Cache.clear();
+  showLoginScreen();
+  setTimeout(function(){ showAlert('loginAlert','세션이 만료되었습니다. 다시 로그인해주세요.','error'); }, 100);
+}
 
 function checkDuplicateUserId() {
   var userId=document.getElementById('registerUserId').value.trim();
