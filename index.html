@@ -713,7 +713,7 @@ function gasCall(params) {
     var cbName = '_gas_' + (++_cbIdx) + '_' + Date.now();
     params.callback = cbName;
     // ★ API 접근 토큰 자동 주입 (login/checkUserId/registerUser 제외)
-    var publicActions = ['login', 'checkUserId', 'registerUser'];
+    var publicActions = ['login', 'checkUserId', 'registerUser', 'getDepartments'];
     if (publicActions.indexOf(params.action) === -1) {
       params.apiKey = API_SECRET_KEY;
       if (sessionToken) params.sessionToken = sessionToken;
@@ -727,7 +727,7 @@ function gasCall(params) {
     window[cbName] = function(data) {
       cleanup();
       // ★ 세션 만료 자동 감지 (PUBLIC_ACTIONS 제외)
-      var publicActions = ['login', 'checkUserId', 'registerUser'];
+      var publicActions = ['login', 'checkUserId', 'registerUser', 'getDepartments'];
       if (data && data.error === 'session_expired' && publicActions.indexOf(params.action) === -1) {
         if (typeof handleSessionExpired === 'function') handleSessionExpired();
         return;
