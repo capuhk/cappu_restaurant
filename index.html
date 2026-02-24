@@ -769,15 +769,34 @@ function setDefaultDates() {
 }
 
 function preloadCache() {
-  if (Cache.restaurants && Cache.departments) return;
-  gasCall({ action: 'getInitialData' })
+  if (Cache.restaurants && Cache.departments) return Promise.resolve();
+  return gasCall({ action: 'getInitialData' })
     .then(function(data) {
       if (data.restaurants) Cache.restaurants = data.restaurants;
       if (data.departments) Cache.departments = data.departments;
+      // 모든 식당의 메뉴를 동시에 미리 가져옴
+      if (data.restaurants && data.restaurants.length > 0) {
+        data.restaurants.forEach(function(r) {
+          if (!Cache.menus[r.id]) {
+            gasCall({action:'getMenus', restaurantId:r.id})
+              .then(function(menus){ Cache.menus[r.id] = menus; })
+              .catch(function(){});
+          }
+        });
+      }
     })
     .catch(function() {
-      if (!Cache.restaurants) gasCall({action:'getRestaurants'}).then(function(d){Cache.restaurants=d;});
-      if (!Cache.departments) gasCall({action:'getDepartments'}).then(function(d){Cache.departments=d;});
+      return gasCall({action:'getRestaurants'}).then(function(d){
+        Cache.restaurants = d;
+        // fallback에서도 메뉴 미리 가져옴
+        d.forEach(function(r){
+          if (!Cache.menus[r.id]) {
+            gasCall({action:'getMenus', restaurantId:r.id})
+              .then(function(menus){ Cache.menus[r.id] = menus; })
+              .catch(function(){});
+          }
+        });
+      });
     });
 }
 
@@ -920,9 +939,11 @@ function loadMenusForUser() {
   document.getElementById('userMenuSelect').innerHTML='<option value="">메뉴를 선택하세요</option>';
   resetPriceDisplay(); if (!rId) return;
   if (Cache.menus[rId]) { fillMenuSelect('userMenuSelect',Cache.menus[rId]); return; }
+  // 캐시 없으면 로딩 표시 후 가져옴
+  document.getElementById('userMenuSelect').innerHTML='<option value="">⏳ 메뉴 불러오는 중...</option>';
   gasCall({action:'getMenus', restaurantId:rId})
     .then(function(menus){ Cache.menus[rId]=menus; fillMenuSelect('userMenuSelect',menus); })
-    .catch(function(){ showAlert('userAlert','메뉴를 불러오지 못했습니다','error'); });
+    .catch(function(){ showAlert('userAlert','메뉴를 불러오지 못했습니다','error'); document.getElementById('userMenuSelect').innerHTML='<option value="">메뉴를 선택하세요</option>'; });
 }
 function onMenuSelected() {
   var s=document.getElementById('userMenuSelect');
