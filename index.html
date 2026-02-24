@@ -722,7 +722,7 @@ function gasCall(params) {
       return encodeURIComponent(k) + '=' + encodeURIComponent(params[k] !== undefined ? params[k] : '');
     }).join('&');
     var script = document.createElement('script');
-    var timer = setTimeout(function() { cleanup(); reject(new Error('timeout')); }, 15000);
+    var timer = setTimeout(function() { cleanup(); reject(new Error('timeout')); }, 8000);
     function cleanup() { clearTimeout(timer); delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); }
     window[cbName] = function(data) {
       cleanup();
@@ -847,6 +847,7 @@ function showAdminScreen() {
   hideAllScreens(); document.getElementById('adminScreen').classList.remove('hidden');
   document.getElementById('adminNameDisplay').textContent = currentUser.name;
   document.getElementById('adminDeptDisplay').textContent = currentUser.department;
+  preloadCache(); // ★ 식당/메뉴 캐시 확보
   adminRestaurantId = (currentUser.restaurantId||'').trim();
   if (!adminRestaurantId) {
     document.getElementById('adminRestaurantBanner').classList.remove('hidden');
@@ -855,10 +856,13 @@ function showAdminScreen() {
     setDefaultDates(); return;
   }
   document.getElementById('adminRestaurantBanner').classList.remove('hidden');
-  document.getElementById('adminRestaurantName').textContent = '로딩 중...';
-  gasCall({action:'getAdminRestaurant', userId:currentUser.userId})
-    .then(function(r){ document.getElementById('adminRestaurantName').textContent = r ? r.name : '식당 정보 없음'; })
-    .catch(function(){ document.getElementById('adminRestaurantName').textContent = adminRestaurantId; });
+  // ★ 캐시에서 식당 이름 즉시 조회 (API 호출 제거)
+  var rName = adminRestaurantId;
+  if (Cache.restaurants) {
+    var found = Cache.restaurants.filter(function(r){ return r.id === adminRestaurantId; })[0];
+    if (found) rName = found.name;
+  }
+  document.getElementById('adminRestaurantName').textContent = rName;
   setDefaultDates(); loadTodayOrders();
 }
 function showMasterScreen() {
