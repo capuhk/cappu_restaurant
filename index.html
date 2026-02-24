@@ -774,17 +774,15 @@ function preloadCache() {
     .then(function(data) {
       if (data.restaurants) Cache.restaurants = data.restaurants;
       if (data.departments) Cache.departments = data.departments;
-      if (data.restaurants && data.restaurants.length > 0) {
-        var menuPromises = data.restaurants.map(function(r) {
-          if (Cache.menus[r.id]) return Promise.resolve();
-          return gasCall({action:'getMenus', restaurantId:r.id})
-            .then(function(menus){ Cache.menus[r.id] = menus; })
-            .catch(function(){ Cache.menus[r.id] = []; });
+      // ★ GAS getInitialData가 menus를 한 번에 반환 → 추가 API 호출 없이 캐시에 저장
+      if (data.menus) {
+        Object.keys(data.menus).forEach(function(rId) {
+          Cache.menus[rId] = data.menus[rId];
         });
-        return Promise.all(menuPromises);
       }
     })
     .catch(function() {
+      // fallback: getInitialData 실패 시 개별 호출
       return gasCall({action:'getRestaurants'}).then(function(d){
         Cache.restaurants = d;
         var menuPromises = d.map(function(r){
