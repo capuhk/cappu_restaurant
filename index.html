@@ -724,6 +724,10 @@ var Cache = {
   clearMembers: function() { this.members=null; }
 };
 
+function safeAttr(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function getPasswordStrength(pw) {
   if (!pw) return 0;
   var s=0;
@@ -973,10 +977,10 @@ function displayOrders(containerId, orders, totalAmount, label) {
   orders.forEach(function(o){
     var dt=new Date(o.orderDate);
     var ds=(dt.getMonth()+1)+'/'+dt.getDate()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
-    html+='<tr><td>'+o.userName+'</td><td>'+o.department+'</td><td>'+o.menuName+'</td><td>'+Number(o.price).toLocaleString()+'원</td><td>'+ds+'</td></tr>';
+    html+='<tr><td>'+safeAttr(o.userName)+'</td><td>'+safeAttr(o.department)+'</td><td>'+safeAttr(o.menuName)+'</td><td>'+Number(o.price).toLocaleString()+'원</td><td>'+ds+'</td></tr>';
   });
   html+='</tbody></table></div><div class="summary-box"><h4>📋 메뉴별 집계</h4>';
-  Object.keys(menuMap).forEach(function(m){ html+='<div class="summary-row"><span>'+m+'<span class="summary-count">×'+menuMap[m].count+'</span></span><span>'+menuMap[m].total.toLocaleString()+'원</span></div>'; });
+  Object.keys(menuMap).forEach(function(m){ html+='<div class="summary-row"><span>'+safeAttr(m)+'<span class="summary-count">×'+menuMap[m].count+'</span></span><span>'+menuMap[m].total.toLocaleString()+'원</span></div>'; });
   html+='<div class="summary-row total"><span>합계 <span class="summary-count">('+orders.length+'건)</span></span><span>'+totalAmount.toLocaleString()+'원</span></div></div>';
   container.innerHTML=html;
 }
@@ -986,8 +990,8 @@ function renderRestaurantTable(restaurants) {
   if (!restaurants||restaurants.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">🏪</div><p>등록된 식당이 없습니다</p></div>'; return; }
   var html='<div class="table-wrap"><table><colgroup><col class="col-rname"><col class="col-act"></colgroup><thead><tr><th>식당 이름</th><th>삭제</th></tr></thead><tbody>';
   restaurants.forEach(function(r){
-    html+='<tr><td><strong>'+r.name+'</strong></td><td>';
-    html+='<button class="btn btn-danger btn-small" onclick="deleteRestaurant(this.dataset.id)" data-id="'+r.id+'">삭제</button>';
+    html+='<tr><td><strong>'+safeAttr(r.name)+'</strong></td><td>';
+    html+='<button class="btn btn-danger btn-small" onclick="deleteRestaurant(this.dataset.id)" data-id="'+safeAttr(r.id)+'">삭제</button>';
     html+='</td></tr>';
   });
   html+='</tbody></table></div>'; c.innerHTML=html;
@@ -1025,19 +1029,19 @@ function renderMenuTable(menus) {
   if (!menus||menus.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">📋</div><p>등록된 메뉴가 없습니다</p></div>'; return; }
   var html='<div class="table-wrap"><table><colgroup><col class="col-mname"><col class="col-mprice"><col class="col-mact"></colgroup><thead><tr><th>메뉴 이름</th><th>금액</th><th>액션</th></tr></thead><tbody>';
   menus.forEach(function(menu){
-    html+='<tr id="menu-row-'+menu.id+'">';
-    html+='<td>'+menu.name+'</td>';
+    html+='<tr id="menu-row-'+safeAttr(menu.id)+'">';
+    html+='<td>'+safeAttr(menu.name)+'</td>';
     html+='<td style="font-weight:600;color:#667eea;">'+(menu.price>0?menu.price.toLocaleString()+'원':'-')+'</td>';
     html+='<td>';
-    html+='<button class="btn btn-warning btn-small" style="margin-right:4px;margin-bottom:4px;" onclick="showMenuEditRow(this.dataset.id)" data-id="'+menu.id+'">수정</button>';
-    html+='<button class="btn btn-danger btn-small" onclick="deleteMenu(this.dataset.id)" data-id="'+menu.id+'">삭제</button>';
+    html+='<button class="btn btn-warning btn-small" style="margin-right:4px;margin-bottom:4px;" onclick="showMenuEditRow(this.dataset.id)" data-id="'+safeAttr(menu.id)+'">수정</button>';
+    html+='<button class="btn btn-danger btn-small" onclick="deleteMenu(this.dataset.id)" data-id="'+safeAttr(menu.id)+'">삭제</button>';
     html+='</td></tr>';
-    html+='<tr id="menu-edit-'+menu.id+'" class="hidden"><td colspan="3"><div class="menu-edit-row">';
-    html+='<div class="form-group" style="margin-bottom:8px;"><label>메뉴 이름</label><input type="text" id="edit-name-'+menu.id+'" value="'+menu.name.replace(/"/g,'&quot;')+'"></div>';
-    html+='<div class="form-group" style="margin-bottom:8px;"><label>금액 (원)</label><input type="number" id="edit-price-'+menu.id+'" value="'+menu.price+'" min="0" inputmode="numeric"></div>';
+    html+='<tr id="menu-edit-'+safeAttr(menu.id)+'" class="hidden"><td colspan="3"><div class="menu-edit-row">';
+    html+='<div class="form-group" style="margin-bottom:8px;"><label>메뉴 이름</label><input type="text" id="edit-name-'+safeAttr(menu.id)+'" value="'+safeAttr(menu.name)+'"></div>';
+    html+='<div class="form-group" style="margin-bottom:8px;"><label>금액 (원)</label><input type="number" id="edit-price-'+safeAttr(menu.id)+'" value="'+menu.price+'" min="0" inputmode="numeric"></div>';
     html+='<div class="menu-edit-actions">';
-    html+='<button class="btn btn-primary btn-small" onclick="handleUpdateMenu(this.dataset.id)" data-id="'+menu.id+'">저장</button>';
-    html+='<button class="btn btn-secondary btn-small" onclick="hideMenuEditRow(this.dataset.id)" data-id="'+menu.id+'">취소</button>';
+    html+='<button class="btn btn-primary btn-small" onclick="handleUpdateMenu(this.dataset.id)" data-id="'+safeAttr(menu.id)+'">저장</button>';
+    html+='<button class="btn btn-secondary btn-small" onclick="hideMenuEditRow(this.dataset.id)" data-id="'+safeAttr(menu.id)+'">취소</button>';
     html+='</div></div></td></tr>';
   });
   html+='</tbody></table></div>'; c.innerHTML=html;
@@ -1109,7 +1113,7 @@ function renderRestaurantButtons(restaurants) {
   var c=document.getElementById('restaurantButtonsContainer');
   if (!restaurants||restaurants.length===0) { c.innerHTML='<div class="empty-state"><p>등록된 식당이 없습니다</p></div>'; return; }
   var html='<div class="restaurant-buttons"><button class="btn btn-all active" onclick="selectRestaurantForStats(\'all\', this)">🏪 전체 조회</button>';
-  restaurants.forEach(function(r){ html+='<button class="btn btn-secondary" onclick="selectRestaurantForStats(\''+r.id+'\', this)">'+r.name+'</button>'; });
+  restaurants.forEach(function(r){ html+='<button class="btn btn-secondary" onclick="selectRestaurantForStats(\''+safeAttr(r.id)+'\', this)">'+safeAttr(r.name)+'</button>'; });
   html+='</div>'; c.innerHTML=html; selectedRestaurantId='all';
 }
 function selectRestaurantForStats(rId, btn) {
@@ -1133,15 +1137,15 @@ function buildOrderTable(orders) {
   orders.forEach(function(o){
     var dt=new Date(o.orderDate);
     var ds=(dt.getMonth()+1)+'/'+dt.getDate()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
-    html+='<tr><td>'+o.userName+'</td><td>'+o.department+'</td><td>'+o.menuName+'</td><td>'+Number(o.price).toLocaleString()+'원</td><td>'+ds+'</td></tr>';
+    html+='<tr><td>'+safeAttr(o.userName)+'</td><td>'+safeAttr(o.department)+'</td><td>'+safeAttr(o.menuName)+'</td><td>'+Number(o.price).toLocaleString()+'원</td><td>'+ds+'</td></tr>';
   });
   return html+'</tbody></table></div>';
 }
 function buildDeptSummaryBox(orders, totalAmount, deptFilter) {
   var menuMap={};
   orders.forEach(function(o){ if(!menuMap[o.menuName]) menuMap[o.menuName]={count:0,total:0}; menuMap[o.menuName].count++; menuMap[o.menuName].total+=Number(o.price); });
-  var html='<div class="summary-box"><h4>📋 메뉴별 집계'+(deptFilter?' · '+deptFilter:'')+'</h4>';
-  Object.keys(menuMap).forEach(function(m){ html+='<div class="summary-row"><span>'+m+'<span class="summary-count"> ×'+menuMap[m].count+'</span></span><span>'+menuMap[m].total.toLocaleString()+'원</span></div>'; });
+  var html='<div class="summary-box"><h4>📋 메뉴별 집계'+(deptFilter?' · '+safeAttr(deptFilter):'')+'</h4>';
+  Object.keys(menuMap).forEach(function(m){ html+='<div class="summary-row"><span>'+safeAttr(m)+'<span class="summary-count"> ×'+menuMap[m].count+'</span></span><span>'+menuMap[m].total.toLocaleString()+'원</span></div>'; });
   html+='<div class="summary-row total"><span>합계 <span class="summary-count">('+orders.length+'건)</span></span><span>'+totalAmount.toLocaleString()+'원</span></div></div>';
   if (!deptFilter) {
     var deptMap={};
@@ -1149,7 +1153,7 @@ function buildDeptSummaryBox(orders, totalAmount, deptFilter) {
     var depts=Object.keys(deptMap);
     if (depts.length>1) {
       html+='<div class="summary-box" style="background:#f0f9ff;border-color:#bae6fd;margin-top:8px;"><h4>🏢 부서별 집계</h4>';
-      depts.sort().forEach(function(d){ html+='<div class="summary-row"><span>'+d+'<span class="summary-count"> ×'+deptMap[d].count+'</span></span><span>'+deptMap[d].total.toLocaleString()+'원</span></div>'; });
+      depts.sort().forEach(function(d){ html+='<div class="summary-row"><span>'+safeAttr(d)+'<span class="summary-count"> ×'+deptMap[d].count+'</span></span><span>'+deptMap[d].total.toLocaleString()+'원</span></div>'; });
       html+='</div>';
     }
   }
@@ -1163,12 +1167,12 @@ function displayAllRestaurantStats(stats) {
     return {restaurantName:stat.restaurantName, orders:fo, totalAmount:fo.reduce(function(s,o){return s+Number(o.price);},0)};
   }).filter(function(s){return s.orders.length>0;});
   if (filtered.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">📭</div><p>주문 내역이 없습니다</p></div>'; return; }
-  var filterLabel=deptFilter?' · <span style="color:#667eea;font-size:14px;">🏢 '+deptFilter+'</span>':'';
+  var filterLabel=deptFilter?' · <span style="color:#667eea;font-size:14px;">🏢 '+safeAttr(deptFilter)+'</span>':'';
   var html='', grand=0;
-  filtered.forEach(function(stat){ grand+=stat.totalAmount; html+='<div class="card" style="background:#f9fafb;"><h3>'+stat.restaurantName+filterLabel+'</h3>'+buildOrderTable(stat.orders)+buildDeptSummaryBox(stat.orders,stat.totalAmount,deptFilter)+'</div>'; });
+  filtered.forEach(function(stat){ grand+=stat.totalAmount; html+='<div class="card" style="background:#f9fafb;"><h3>'+safeAttr(stat.restaurantName)+filterLabel+'</h3>'+buildOrderTable(stat.orders)+buildDeptSummaryBox(stat.orders,stat.totalAmount,deptFilter)+'</div>'; });
   var allOrders=[]; filtered.forEach(function(s){allOrders=allOrders.concat(s.orders);});
-  html+='<div class="card"><div class="summary-box" style="background:#dcfce7;border-color:#86efac;"><h4>🏪 전체 합계'+(deptFilter?' ('+deptFilter+')':'')+'</h4>';
-  filtered.forEach(function(s){html+='<div class="summary-row"><span>'+s.restaurantName+'<span class="summary-count"> ('+s.orders.length+'건)</span></span><span>'+s.totalAmount.toLocaleString()+'원</span></div>';});
+  html+='<div class="card"><div class="summary-box" style="background:#dcfce7;border-color:#86efac;"><h4>🏪 전체 합계'+(deptFilter?' ('+safeAttr(deptFilter)+')':'')+'</h4>';
+  filtered.forEach(function(s){html+='<div class="summary-row"><span>'+safeAttr(s.restaurantName)+'<span class="summary-count"> ('+s.orders.length+'건)</span></span><span>'+s.totalAmount.toLocaleString()+'원</span></div>';});
   html+='<div class="summary-row total"><span>총합계 <span class="summary-count">('+allOrders.length+'건)</span></span><span>'+grand.toLocaleString()+'원</span></div></div></div>';
   c.innerHTML=html;
 }
@@ -1178,7 +1182,7 @@ function displaySingleRestaurantStats(result) {
   var orders=deptFilter?result.orders.filter(function(o){return o.department===deptFilter;}):result.orders;
   var totalAmount=orders.reduce(function(s,o){return s+Number(o.price);},0);
   if (orders.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">📭</div><p>주문 내역이 없습니다</p></div>'; return; }
-  c.innerHTML='<div class="card">'+(deptFilter?'<div style="margin-bottom:10px;font-size:14px;color:#667eea;font-weight:600;">🏢 '+deptFilter+' 부서 필터 적용 중</div>':'')+buildOrderTable(orders)+buildDeptSummaryBox(orders,totalAmount,deptFilter)+'</div>';
+  c.innerHTML='<div class="card">'+(deptFilter?'<div style="margin-bottom:10px;font-size:14px;color:#667eea;font-weight:600;">🏢 '+safeAttr(deptFilter)+' 부서 필터 적용 중</div>':'')+buildOrderTable(orders)+buildDeptSummaryBox(orders,totalAmount,deptFilter)+'</div>';
 }
 
 function toggleRestaurantSelect() {
@@ -1226,10 +1230,12 @@ function renderMembersTable(members) {
   html+='<thead><tr><th>아이디</th><th>이름</th><th>부서</th><th>역할</th><th>식당</th><th>삭제</th></tr></thead><tbody>';
   members.forEach(function(m){
     var rName=m.restaurantId?(rMap[m.restaurantId]||m.restaurantId):'-';
-    html+='<tr><td>'+m.userId+'</td><td>'+m.name+'</td><td>'+m.department+'</td>';
+    // ★ 수정된 부분: safeAttr로 특수문자 이스케이프 처리
+    var delBtn = m.role==='master' ? '-' : '<button class="btn btn-danger btn-small" onclick="deleteMember(this.dataset.id)" data-id="'+safeAttr(m.userId)+'">삭제</button>';
+    html+='<tr><td>'+safeAttr(m.userId)+'</td><td>'+safeAttr(m.name)+'</td><td>'+safeAttr(m.department)+'</td>';
     html+='<td><span class="member-role-badge '+(roleBadge[m.role]||'badge-user')+'">'+(roleLabel[m.role]||m.role)+'</span></td>';
-    html+='<td style="font-size:11px;color:#6b7280;">'+rName+'</td>';
-    html+='<td>'+(m.role==='master'?'-':'<button class="btn btn-danger btn-small" onclick="deleteMember(this.dataset.id)" data-id="'+m.userId+'">삭제</button>')+'</td></tr>';
+    html+='<td style="font-size:11px;color:#6b7280;">'+safeAttr(rName)+'</td>';
+    html+='<td>'+delBtn+'</td></tr>';
   });
   html+='</tbody></table></div><p style="margin-top:10px;font-size:13px;color:#6b7280;text-align:right;">총 '+members.length+'명</p>';
   c.innerHTML=html;
@@ -1272,7 +1278,7 @@ function renderDeptTable(depts) {
   if (!depts||depts.length===0) { c.innerHTML='<div class="empty-state"><div class="empty-state-icon">🏢</div><p>등록된 부서가 없습니다</p></div>'; return; }
   var html='<div class="table-wrap"><table><colgroup><col class="col-dname"><col class="col-ddel"></colgroup><thead><tr><th>부서 이름</th><th>삭제</th></tr></thead><tbody>';
   depts.forEach(function(d){
-    html+='<tr><td>'+d+'</td><td><button class="btn btn-danger btn-small" onclick="handleDeleteDepartment(this.dataset.name)" data-name="'+d.replace(/"/g,'&quot;')+'">삭제</button></td></tr>';
+    html+='<tr><td>'+safeAttr(d)+'</td><td><button class="btn btn-danger btn-small" onclick="handleDeleteDepartment(this.dataset.name)" data-name="'+safeAttr(d)+'">삭제</button></td></tr>';
   });
   html+='</tbody></table></div>'; c.innerHTML=html;
 }
