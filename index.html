@@ -742,12 +742,57 @@ function gasCall(params) {
 
 var currentUser = null, sessionToken = null, userIdChecked = false, memberIdChecked = false;
 var selectedRestaurantId = 'all', adminRestaurantId = null;
+
+// ★ localStorage 영구 캐시 (재방문 시 API 호출 생략)
+// TTL: restaurants/menus/departments = 30분, members = 5분 (자주 바뀜)
+var PCache = {
+  PREFIX: 'krs_',
+  set: function(key, data, ttlMin) {
+    try {
+      localStorage.setItem(this.PREFIX + key, JSON.stringify({
+        data: data,
+        expires: Date.now() + (ttlMin || 30) * 60000
+      }));
+    } catch(e) {}
+  },
+  get: function(key) {
+    try {
+      var raw = localStorage.getItem(this.PREFIX + key);
+      if (!raw) return null;
+      var item = JSON.parse(raw);
+      if (item && item.expires > Date.now()) return item.data;
+      localStorage.removeItem(this.PREFIX + key); // 만료 시 삭제
+    } catch(e) {}
+    return null;
+  },
+  del: function(key) {
+    try { localStorage.removeItem(this.PREFIX + key); } catch(e) {}
+  },
+  // 식당/메뉴/부서 관련 캐시 전체 무효화
+  clearStatic: function() {
+    ['restaurants','menus','departments'].forEach(function(k) {
+      try { localStorage.removeItem('krs_' + k); } catch(e) {}
+    });
+  }
+};
+
 var Cache = {
   restaurants: null, menus: {}, members: null, departments: null,
-  clear: function() { this.restaurants=null; this.menus={}; this.members=null; this.departments=null; },
-  clearRestaurants: function() { this.restaurants=null; this.menus={}; },
-  clearMenus: function(rId) { if(rId) delete this.menus[rId]; else this.menus={}; },
-  clearMembers: function() { this.members=null; }
+  clear: function() {
+    this.restaurants=null; this.menus={}; this.members=null; this.departments=null;
+    PCache.clearStatic(); PCache.del('members');
+  },
+  clearRestaurants: function() {
+    this.restaurants=null; this.menus={};
+    PCache.del('restaurants'); PCache.del('menus');
+  },
+  clearMenus: function(rId) {
+    if(rId) { delete this.menus[rId]; }
+    else { this.menus={}; }
+    // menus는 통째로 저장하므로 항상 전체 무효화
+    PCache.del('menus');
+  },
+  clearMembers: function() { this.members=null; PCache.del('members'); }
 };
 
 function safeAttr(str) {
@@ -772,7 +817,21 @@ function renderStrength(score, fillId, textId, wrapId) {
 function checkPasswordStrength(pw)  { renderStrength(getPasswordStrength(pw),'pwStrengthFill','pwStrengthText','pwStrengthWrap'); }
 function checkPasswordStrength2(pw) { renderStrength(getPasswordStrength(pw),'pwStrengthFill2','pwStrengthText2','pwStrengthWrap2'); }
 
-window.onload = function() { loadSavedCredentials(); setDefaultDates(); };
+window.onload = function() {
+  loadSavedCredentials();
+  setDefaultDates();
+  // ★ 앱 시작 시 localStorage → 메모리 캐시로 워밍업 (API 호출 없이 즉시 사용 가능)
+  warmupCacheFromStorage();
+};
+
+function warmupCacheFromStorage() {
+  var restaurants = PCache.get('restaurants');
+  var menus       = PCache.get('menus');
+  var departments = PCache.get('departments');
+  if (restaurants) Cache.restaurants = restaurants;
+  if (menus)       Cache.menus       = menus;
+  if (departments) Cache.departments = departments;
+}
 
 function loadSavedCredentials() {
   try {
@@ -798,26 +857,37 @@ function preloadCache() {
   if (Cache.restaurants && Cache.departments && Object.keys(Cache.menus).length > 0) return Promise.resolve();
   return gasCall({ action: 'getInitialData' })
     .then(function(data) {
-      if (data.restaurants) Cache.restaurants = data.restaurants;
-      if (data.departments) Cache.departments = data.departments;
-      // ★ GAS getInitialData가 menus를 한 번에 반환 → 추가 API 호출 없이 캐시에 저장
+      if (data.restaurants) {
+        Cache.restaurants = data.restaurants;
+        PCache.set('restaurants', data.restaurants, 30); // ★ 30분 유지
+      }
+      if (data.departments) {
+        Cache.departments = data.departments;
+        PCache.set('departments', data.departments, 30); // ★ 30분 유지
+      }
       if (data.menus) {
         Object.keys(data.menus).forEach(function(rId) {
           Cache.menus[rId] = data.menus[rId];
         });
+        PCache.set('menus', Cache.menus, 30); // ★ 30분 유지 (전체 menus 객체 저장)
       }
     })
     .catch(function() {
       // fallback: getInitialData 실패 시 개별 호출
       return gasCall({action:'getRestaurants'}).then(function(d){
         Cache.restaurants = d;
+        PCache.set('restaurants', d, 30);
         var menuPromises = d.map(function(r){
           if (Cache.menus[r.id]) return Promise.resolve();
           return gasCall({action:'getMenus', restaurantId:r.id})
-            .then(function(menus){ Cache.menus[r.id] = menus; })
+            .then(function(menus){
+              Cache.menus[r.id] = menus;
+            })
             .catch(function(){ Cache.menus[r.id] = []; });
         });
-        return Promise.all(menuPromises);
+        return Promise.all(menuPromises).then(function(){
+          PCache.set('menus', Cache.menus, 30);
+        });
       });
     });
 }
@@ -1321,8 +1391,11 @@ function loadDeptSelect(selectId) {
   var sel=document.getElementById(selectId); if (!sel) return;
   if (Cache.departments) { fillDeptSelect(selectId,Cache.departments); return; }
   sel.innerHTML='<option value="">로딩 중...</option>';
-  gasCall({action:'getDepartments'}).then(function(d){ Cache.departments=d; fillDeptSelect(selectId,d); })
-    .catch(function(){ sel.innerHTML='<option value="">불러오기 실패</option>'; });
+  gasCall({action:'getDepartments'}).then(function(d){
+    Cache.departments=d;
+    PCache.set('departments', d, 30); // ★ localStorage 저장
+    fillDeptSelect(selectId,d);
+  }).catch(function(){ sel.innerHTML='<option value="">불러오기 실패</option>'; });
 }
 function fillDeptSelect(selectId, depts) {
   var sel=document.getElementById(selectId); if (!sel) return;
@@ -1363,7 +1436,9 @@ function handleDeleteDepartment(name) {
 }
 function refreshDeptCache(callback) {
   gasCall({action:'getDepartments'}).then(function(d){
-    Cache.departments=d; renderDeptTable(d); fillDeptSelect('newMemberDept',d); fillDeptSelect('registerDepartment',d);
+    Cache.departments=d;
+    PCache.set('departments', d, 30); // ★ localStorage 갱신
+    renderDeptTable(d); fillDeptSelect('newMemberDept',d); fillDeptSelect('registerDepartment',d);
     if (callback) callback();
   }).catch(function(){ showAlert('deptAlert','목록 갱신 중 오류가 발생했습니다','error'); });
 }
