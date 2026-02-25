@@ -904,14 +904,18 @@ function showUserScreen() {
   hideAllScreens(); document.getElementById('userScreen').classList.remove('hidden');
   document.getElementById('userNameDisplay').textContent = currentUser.name;
   document.getElementById('userDeptDisplay').textContent = currentUser.department;
-  // 식당 select를 로딩 중 표시
-  document.getElementById('userRestaurantSelect').innerHTML = '<option value="">⏳ 데이터 불러오는 중...</option>';
   document.getElementById('userMenuSelect').innerHTML = '<option value="">메뉴를 선택하세요</option>';
-  preloadCache().then(function() {
-    loadRestaurantsForUser();
-  }).catch(function() {
-    loadRestaurantsForUser();
-  });
+  // ★ 캐시 있으면 즉시 표시, 없을 때만 로딩 표시 후 API 호출
+  if (Cache.restaurants) {
+    fillRestaurantSelect('userRestaurantSelect', Cache.restaurants);
+  } else {
+    document.getElementById('userRestaurantSelect').innerHTML = '<option value="">⏳ 데이터 불러오는 중...</option>';
+    preloadCache().then(function() {
+      loadRestaurantsForUser();
+    }).catch(function() {
+      loadRestaurantsForUser();
+    });
+  }
 }
 function showAdminScreen() {
   hideAllScreens(); document.getElementById('adminScreen').classList.remove('hidden');
