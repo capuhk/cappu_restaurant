@@ -779,8 +779,10 @@ var PCache = {
 var Cache = {
   restaurants: null, menus: {}, members: null, departments: null,
   clear: function() {
+    // ★ 식당/메뉴/부서는 공통 데이터라 로그아웃해도 localStorage 유지
+    // 메모리만 초기화 → 다음 로그인 시 localStorage에서 즉시 복원됨
     this.restaurants=null; this.menus={}; this.members=null; this.departments=null;
-    PCache.clearStatic(); PCache.del('members');
+    PCache.del('members'); // 회원 목록만 삭제 (개인정보성)
   },
   clearRestaurants: function() {
     this.restaurants=null; this.menus={};
