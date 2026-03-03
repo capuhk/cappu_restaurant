@@ -866,7 +866,33 @@ var Cache = {
 };
 
 // ===== 당일 주문 내역 (사용자용) 메모리 =====
-var myTodayOrders = []; // { orderId, restaurantId, restaurantName, menuName, price, orderDate }
+var myTodayOrders = [];
+
+// ★ localStorage 키: 유저ID + 오늘 날짜 조합 (날짜 바뀌면 자동 무효)
+function getMyOrdersKey(userId) {
+  var today = new Date().toISOString().split('T')[0];
+  return 'myOrders_' + userId + '_' + today;
+}
+function saveMyOrdersLocal() {
+  if (!currentUser) return;
+  try { localStorage.setItem(getMyOrdersKey(currentUser.userId), JSON.stringify(myTodayOrders)); } catch(e) {}
+}
+function loadMyOrdersLocal() {
+  if (!currentUser) return [];
+  try {
+    var raw = localStorage.getItem(getMyOrdersKey(currentUser.userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+function clearOldMyOrders(userId) {
+  try {
+    var today = new Date().toISOString().split('T')[0];
+    var prefix = 'myOrders_' + userId + '_';
+    Object.keys(localStorage).forEach(function(k) {
+      if (k.indexOf(prefix) === 0 && k.indexOf(today) === -1) localStorage.removeItem(k);
+    });
+  } catch(e) {}
+}
 
 function safeAttr(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -964,7 +990,9 @@ function showUserScreen() {
   document.getElementById('userNameDisplay').textContent = currentUser.name;
   document.getElementById('userDeptDisplay').textContent = currentUser.department;
   document.getElementById('userMenuSelect').innerHTML = '<option value="">메뉴를 선택하세요</option>';
-  myTodayOrders = [];
+  // ★ localStorage에서 즉시 표시 (로딩 없음)
+  myTodayOrders = loadMyOrdersLocal();
+  clearOldMyOrders(currentUser.userId);
   renderMyTodayOrders();
   if (Cache.restaurants) {
     fillRestaurantSelect('userRestaurantSelect', Cache.restaurants);
@@ -1037,19 +1065,20 @@ function togglePwForm() {
 // ===== 당일 내 주문 내역 (사용자) =====
 function loadMyTodayOrders() {
   if (!currentUser) return;
-  document.getElementById('myOrdersContent').innerHTML = loadingHtml();
+  // ★ localStorage 데이터가 있으면 로딩 스피너 없이 백그라운드 갱신
+  var hasLocal = myTodayOrders && myTodayOrders.length > 0;
+  if (!hasLocal) document.getElementById('myOrdersContent').innerHTML = loadingHtml();
   gasCall({ action: 'getMyTodayOrders', userId: currentUser.userId })
     .then(function(r) {
       if (r && r.orders) {
         myTodayOrders = r.orders;
-      } else {
-        myTodayOrders = [];
+        saveMyOrdersLocal(); // ★ 서버 최신 데이터를 localStorage에 동기화
       }
       renderMyTodayOrders();
     })
     .catch(function() {
-      // API가 없을 경우 메모리에 있는 로컬 데이터만 표시
-      renderMyTodayOrders();
+      // 서버 실패 시 localStorage 데이터 그대로 유지
+      if (!hasLocal) renderMyTodayOrders();
     });
 }
 
@@ -1212,6 +1241,7 @@ function handleUpdateMyOrder(idx) {
       myTodayOrders[idx].menuName = menuName;
       myTodayOrders[idx].price = price;
       showAlert('userAlert', '주문이 수정되었습니다', 'success');
+      saveMyOrdersLocal(); // ★
       renderMyTodayOrders();
     } else {
       showAlert('userAlert', (r && r.message) || '수정 중 오류가 발생했습니다', 'error');
@@ -1224,6 +1254,7 @@ function handleUpdateMyOrder(idx) {
     myTodayOrders[idx].menuName = menuName;
     myTodayOrders[idx].price = price;
     showAlert('userAlert', '주문이 수정되었습니다', 'success');
+    saveMyOrdersLocal(); // ★
     renderMyTodayOrders();
   });
 }
@@ -1237,6 +1268,7 @@ function handleDeleteMyOrder(idx) {
       if (r && r.success) {
         myTodayOrders.splice(idx, 1);
         showAlert('userAlert', '주문이 삭제되었습니다', 'success');
+        saveMyOrdersLocal(); // ★
         renderMyTodayOrders();
       } else {
         showAlert('userAlert', (r && r.message) || '삭제 중 오류가 발생했습니다', 'error');
@@ -1245,6 +1277,7 @@ function handleDeleteMyOrder(idx) {
     .catch(function() {
       myTodayOrders.splice(idx, 1);
       showAlert('userAlert', '주문이 삭제되었습니다', 'success');
+      saveMyOrdersLocal(); // ★
       renderMyTodayOrders();
     });
 }
@@ -1380,6 +1413,7 @@ function handleUserOrder() {
           price: price,
           orderDate: now
         });
+        saveMyOrdersLocal(); // ★
         renderMyTodayOrders();
       } else {
         showAlert('userAlert','주문 등록 중 오류가 발생했습니다','error');
