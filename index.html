@@ -317,6 +317,88 @@
     .pw-medium { color: #f59e0b; }
     .pw-strong { color: #10b981; }
 
+    /* ===== 주문 완료 팝업 모달 ===== */
+    .order-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.2s ease;
+    }
+    .order-modal-overlay.hiding {
+      animation: fadeOut 0.25s ease forwards;
+    }
+    .order-modal {
+      background: white;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 340px;
+      padding: 28px 24px 24px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      animation: slideUp 0.25s ease;
+    }
+    .order-modal.hiding {
+      animation: slideDown 0.25s ease forwards;
+    }
+    .order-modal-icon {
+      font-size: 52px;
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+    .order-modal-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 10px;
+    }
+    .order-modal-body {
+      background: #f0fdf4;
+      border: 1.5px solid #bbf7d0;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .order-modal-restaurant {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .order-modal-menu {
+      font-size: 17px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+    .order-modal-price {
+      font-size: 22px;
+      font-weight: 800;
+      color: #667eea;
+    }
+    .order-modal-close {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 0;
+      width: 100%;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-appearance: none;
+    }
+    .order-modal-close:active { opacity: 0.85; transform: scale(0.98); }
+
+    @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes slideUp   { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(30px); opacity: 0; } }
+
     /* ===== 비밀번호 변경 토글 버튼 ===== */
     .pw-toggle-btn {
       background: #f9fafb;
@@ -1401,7 +1483,8 @@ function handleUserOrder() {
   gasCall({action:'addOrder', userId:currentUser.userId, userName:currentUser.name, department:currentUser.department, restaurantId:rId, restaurantName:rName, menuName:menuName, price:price})
     .then(function(r){
       if (r.success) {
-        showAlert('userAlert','주문이 등록되었습니다','success');
+        showOrderModal(rName, menuName, price); // ★ 팝업
+        document.getElementById('userAlert').innerHTML = ''; // 기존 알림 제거
         // 로컬 내역에 추가
         var now = new Date().toISOString();
         myTodayOrders.unshift({
@@ -1775,6 +1858,38 @@ function refreshDeptCache(callback) {
     renderDeptTable(d); fillDeptSelect('newMemberDept',d); fillDeptSelect('registerDepartment',d);
     if (callback) callback();
   }).catch(function(){ showAlert('deptAlert','목록 갱신 중 오류가 발생했습니다','error'); });
+}
+
+// ===== 주문 완료 팝업 =====
+function showOrderModal(restaurantName, menuName, price) {
+  var existing = document.getElementById('orderSuccessModal');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.className = 'order-modal-overlay';
+  overlay.id = 'orderSuccessModal';
+  overlay.innerHTML =
+    '<div class="order-modal" id="orderModalBox">' +
+      '<div class="order-modal-icon">✅</div>' +
+      '<div class="order-modal-title">주문 완료!</div>' +
+      '<div class="order-modal-body">' +
+        '<div class="order-modal-restaurant">🏪 ' + safeAttr(restaurantName) + '</div>' +
+        '<div class="order-modal-menu">' + safeAttr(menuName) + '</div>' +
+        '<div class="order-modal-price">' + Number(price).toLocaleString() + '원</div>' +
+      '</div>' +
+      '<button class="order-modal-close" onclick="closeOrderModal()">확인</button>' +
+    '</div>';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeOrderModal(); });
+  document.body.appendChild(overlay);
+  overlay._autoClose = setTimeout(function() { closeOrderModal(); }, 3000);
+}
+function closeOrderModal() {
+  var overlay = document.getElementById('orderSuccessModal');
+  if (!overlay) return;
+  clearTimeout(overlay._autoClose);
+  overlay.classList.add('hiding');
+  var box = document.getElementById('orderModalBox');
+  if (box) box.classList.add('hiding');
+  setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 260);
 }
 
 function showAlert(containerId, message, type) {
