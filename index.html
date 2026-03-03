@@ -316,6 +316,85 @@
     .pw-weak   { color: #ef4444; }
     .pw-medium { color: #f59e0b; }
     .pw-strong { color: #10b981; }
+
+    /* ===== 비밀번호 변경 토글 버튼 ===== */
+    .pw-toggle-btn {
+      background: #f9fafb;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 14px 16px;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      color: #374151;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      touch-action: manipulation;
+      -webkit-appearance: none;
+      min-height: 50px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .pw-toggle-btn:active { background: #eff6ff; border-color: #667eea; }
+    .pw-toggle-btn .pw-toggle-arrow {
+      font-size: 18px;
+      transition: transform 0.25s;
+      color: #9ca3af;
+    }
+    .pw-toggle-btn.open .pw-toggle-arrow { transform: rotate(180deg); color: #667eea; }
+    .pw-toggle-btn.open { border-color: #667eea; background: #eff6ff; color: #667eea; }
+
+    .pw-change-form {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.35s ease, padding 0.2s;
+      padding: 0 0;
+    }
+    .pw-change-form.open {
+      max-height: 600px;
+      padding: 14px 0 0;
+    }
+
+    /* ===== 당일 주문 내역 (사용자) ===== */
+    .my-orders-card { border-color: #c7d2fe; }
+    .my-orders-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    }
+    .my-orders-header h3 { margin-bottom: 0; }
+
+    .my-order-item {
+      background: #f9fafb;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .my-order-item-top {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+    }
+    .my-order-item-info { flex: 1; min-width: 0; }
+    .my-order-item-name { font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 2px; }
+    .my-order-item-sub { font-size: 12px; color: #6b7280; }
+    .my-order-item-price { font-size: 15px; font-weight: 700; color: #667eea; white-space: nowrap; }
+    .my-order-item-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+    /* 주문 수정 인라인 폼 */
+    .order-edit-form {
+      background: #eff6ff;
+      border: 1.5px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 8px;
+    }
+    .order-edit-form .form-group { margin-bottom: 8px; }
+    .order-edit-form label { font-size: 13px; }
+    .order-edit-form select, .order-edit-form input {
+      font-size: 14px; padding: 9px 12px; min-height: 42px;
+    }
+    .order-edit-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .order-edit-actions .btn { font-size: 13px; min-height: 38px; }
   </style>
 </head>
 <body>
@@ -395,6 +474,8 @@
         <button class="btn btn-secondary btn-logout" onclick="handleLogout()">로그아웃</button>
       </div>
       <div id="userAlert"></div>
+
+      <!-- 주문하기 -->
       <div class="card">
         <h3>주문하기</h3>
         <div class="form-group">
@@ -417,27 +498,45 @@
         <button class="btn btn-primary" onclick="handleUserOrder()">주문 등록</button>
       </div>
 
-      <div class="card">
-        <h3>🔐 비밀번호 변경</h3>
-        <div id="userChangePwAlert"></div>
-        <div class="form-group">
-          <label for="userCurrentPw">현재 비밀번호</label>
-          <input type="password" id="userCurrentPw" placeholder="현재 비밀번호">
+      <!-- 당일 주문 내역 (사용자) -->
+      <div class="card my-orders-card">
+        <div class="my-orders-header">
+          <h3>📋 오늘 내 주문 내역</h3>
+          <button class="btn btn-secondary btn-small" onclick="loadMyTodayOrders()">🔄 새로고침</button>
         </div>
-        <div class="form-group">
-          <label for="userNewPw">새 비밀번호</label>
-          <input type="password" id="userNewPw" placeholder="새 비밀번호" oninput="checkPasswordStrength2(this.value)">
-          <div class="pw-strength" id="pwStrengthWrap2" style="display:none;">
-            <div class="pw-strength-bar"><div class="pw-strength-fill" id="pwStrengthFill2"></div></div>
-            <span id="pwStrengthText2"></span>
-          </div>
+        <div id="myOrdersContent">
+          <div class="empty-state"><div class="empty-state-icon">🍽️</div><p>오늘 주문 내역이 없습니다</p></div>
         </div>
-        <div class="form-group">
-          <label for="userNewPwConfirm">새 비밀번호 확인</label>
-          <input type="password" id="userNewPwConfirm" placeholder="새 비밀번호를 다시 입력하세요">
-        </div>
-        <button class="btn btn-warning" onclick="handleChangePassword()">비밀번호 변경</button>
       </div>
+
+      <!-- 비밀번호 변경 (토글) -->
+      <div style="margin-bottom: 14px;">
+        <button class="pw-toggle-btn" id="pwToggleBtn" onclick="togglePwForm()">
+          <span>🔐 비밀번호 변경</span>
+          <span class="pw-toggle-arrow">▼</span>
+        </button>
+        <div class="pw-change-form" id="pwChangeForm">
+          <div id="userChangePwAlert"></div>
+          <div class="form-group">
+            <label for="userCurrentPw">현재 비밀번호</label>
+            <input type="password" id="userCurrentPw" placeholder="현재 비밀번호">
+          </div>
+          <div class="form-group">
+            <label for="userNewPw">새 비밀번호</label>
+            <input type="password" id="userNewPw" placeholder="새 비밀번호" oninput="checkPasswordStrength2(this.value)">
+            <div class="pw-strength" id="pwStrengthWrap2" style="display:none;">
+              <div class="pw-strength-bar"><div class="pw-strength-fill" id="pwStrengthFill2"></div></div>
+              <span id="pwStrengthText2"></span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="userNewPwConfirm">새 비밀번호 확인</label>
+            <input type="password" id="userNewPwConfirm" placeholder="새 비밀번호를 다시 입력하세요">
+          </div>
+          <button class="btn btn-warning" onclick="handleChangePassword()">비밀번호 변경</button>
+        </div>
+      </div>
+
     </div>
 
     <!-- ===== 식당 관리자 ===== -->
@@ -695,13 +794,9 @@
 
 <script>
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbw0bZFhbAaB_9sIpI3cQ3x0DCL9iijrXVQbs9MEHTDtLEp5a3QfbDpiB9PCxQYKfUJ8Jw/exec';
-
-// ★ 보안 설정 - GAS의 API_SECRET_KEY와 반드시 동일하게 설정
 var API_SECRET_KEY = 'KRS-2024-SECURE-KEY-!@#$';
-
 var _cbIdx = 0;
 
-// ★ 세션 만료 처리
 function handleSessionExpired() {
   currentUser=null; sessionToken=null; adminRestaurantId=null; Cache.clear();
   showLoginScreen();
@@ -712,7 +807,6 @@ function gasCall(params) {
   return new Promise(function(resolve, reject) {
     var cbName = '_gas_' + (++_cbIdx) + '_' + Date.now();
     params.callback = cbName;
-    // ★ API 접근 토큰 자동 주입 (login/checkUserId/registerUser 제외)
     var publicActions = ['login', 'checkUserId', 'registerUser', 'getDepartments', 'getInitialData', 'getRestaurants', 'getMenus'];
     if (publicActions.indexOf(params.action) === -1) {
       params.apiKey = API_SECRET_KEY;
@@ -726,7 +820,6 @@ function gasCall(params) {
     function cleanup() { clearTimeout(timer); delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); }
     window[cbName] = function(data) {
       cleanup();
-      // ★ 세션 만료 자동 감지 (PUBLIC_ACTIONS 제외)
       var publicActions = ['login', 'checkUserId', 'registerUser', 'getDepartments', 'getInitialData', 'getRestaurants', 'getMenus'];
       if (data && data.error === 'session_expired' && publicActions.indexOf(params.action) === -1) {
         if (typeof handleSessionExpired === 'function') handleSessionExpired();
@@ -743,17 +836,10 @@ function gasCall(params) {
 var currentUser = null, sessionToken = null, userIdChecked = false, memberIdChecked = false;
 var selectedRestaurantId = 'all', adminRestaurantId = null;
 
-// ★ localStorage 영구 캐시 (재방문 시 API 호출 생략)
-// TTL: restaurants/menus/departments = 30분, members = 5분 (자주 바뀜)
 var PCache = {
   PREFIX: 'krs_',
   set: function(key, data, ttlMin) {
-    try {
-      localStorage.setItem(this.PREFIX + key, JSON.stringify({
-        data: data,
-        expires: Date.now() + (ttlMin || 30) * 60000
-      }));
-    } catch(e) {}
+    try { localStorage.setItem(this.PREFIX + key, JSON.stringify({ data: data, expires: Date.now() + (ttlMin || 30) * 60000 })); } catch(e) {}
   },
   get: function(key) {
     try {
@@ -761,41 +847,26 @@ var PCache = {
       if (!raw) return null;
       var item = JSON.parse(raw);
       if (item && item.expires > Date.now()) return item.data;
-      localStorage.removeItem(this.PREFIX + key); // 만료 시 삭제
+      localStorage.removeItem(this.PREFIX + key);
     } catch(e) {}
     return null;
   },
-  del: function(key) {
-    try { localStorage.removeItem(this.PREFIX + key); } catch(e) {}
-  },
-  // 식당/메뉴/부서 관련 캐시 전체 무효화
+  del: function(key) { try { localStorage.removeItem(this.PREFIX + key); } catch(e) {} },
   clearStatic: function() {
-    ['restaurants','menus','departments'].forEach(function(k) {
-      try { localStorage.removeItem('krs_' + k); } catch(e) {}
-    });
+    ['restaurants','menus','departments'].forEach(function(k) { try { localStorage.removeItem('krs_' + k); } catch(e) {} });
   }
 };
 
 var Cache = {
   restaurants: null, menus: {}, members: null, departments: null,
-  clear: function() {
-    // ★ 식당/메뉴/부서는 공통 데이터라 로그아웃해도 localStorage 유지
-    // 메모리만 초기화 → 다음 로그인 시 localStorage에서 즉시 복원됨
-    this.restaurants=null; this.menus={}; this.members=null; this.departments=null;
-    PCache.del('members'); // 회원 목록만 삭제 (개인정보성)
-  },
-  clearRestaurants: function() {
-    this.restaurants=null; this.menus={};
-    PCache.del('restaurants'); PCache.del('menus');
-  },
-  clearMenus: function(rId) {
-    if(rId) { delete this.menus[rId]; }
-    else { this.menus={}; }
-    // menus는 통째로 저장하므로 항상 전체 무효화
-    PCache.del('menus');
-  },
+  clear: function() { this.restaurants=null; this.menus={}; this.members=null; this.departments=null; PCache.del('members'); },
+  clearRestaurants: function() { this.restaurants=null; this.menus={}; PCache.del('restaurants'); PCache.del('menus'); },
+  clearMenus: function(rId) { if(rId) { delete this.menus[rId]; } else { this.menus={}; } PCache.del('menus'); },
   clearMembers: function() { this.members=null; PCache.del('members'); }
 };
+
+// ===== 당일 주문 내역 (사용자용) 메모리 =====
+var myTodayOrders = []; // { orderId, restaurantId, restaurantName, menuName, price, orderDate }
 
 function safeAttr(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -822,7 +893,6 @@ function checkPasswordStrength2(pw) { renderStrength(getPasswordStrength(pw),'pw
 window.onload = function() {
   loadSavedCredentials();
   setDefaultDates();
-  // ★ 앱 시작 시 localStorage → 메모리 캐시로 워밍업 (API 호출 없이 즉시 사용 가능)
   warmupCacheFromStorage();
 };
 
@@ -859,37 +929,23 @@ function preloadCache() {
   if (Cache.restaurants && Cache.departments && Object.keys(Cache.menus).length > 0) return Promise.resolve();
   return gasCall({ action: 'getInitialData' })
     .then(function(data) {
-      if (data.restaurants) {
-        Cache.restaurants = data.restaurants;
-        PCache.set('restaurants', data.restaurants, 30); // ★ 30분 유지
-      }
-      if (data.departments) {
-        Cache.departments = data.departments;
-        PCache.set('departments', data.departments, 30); // ★ 30분 유지
-      }
+      if (data.restaurants) { Cache.restaurants = data.restaurants; PCache.set('restaurants', data.restaurants, 30); }
+      if (data.departments) { Cache.departments = data.departments; PCache.set('departments', data.departments, 30); }
       if (data.menus) {
-        Object.keys(data.menus).forEach(function(rId) {
-          Cache.menus[rId] = data.menus[rId];
-        });
-        PCache.set('menus', Cache.menus, 30); // ★ 30분 유지 (전체 menus 객체 저장)
+        Object.keys(data.menus).forEach(function(rId) { Cache.menus[rId] = data.menus[rId]; });
+        PCache.set('menus', Cache.menus, 30);
       }
     })
     .catch(function() {
-      // fallback: getInitialData 실패 시 개별 호출
       return gasCall({action:'getRestaurants'}).then(function(d){
-        Cache.restaurants = d;
-        PCache.set('restaurants', d, 30);
+        Cache.restaurants = d; PCache.set('restaurants', d, 30);
         var menuPromises = d.map(function(r){
           if (Cache.menus[r.id]) return Promise.resolve();
           return gasCall({action:'getMenus', restaurantId:r.id})
-            .then(function(menus){
-              Cache.menus[r.id] = menus;
-            })
+            .then(function(menus){ Cache.menus[r.id] = menus; })
             .catch(function(){ Cache.menus[r.id] = []; });
         });
-        return Promise.all(menuPromises).then(function(){
-          PCache.set('menus', Cache.menus, 30);
-        });
+        return Promise.all(menuPromises).then(function(){ PCache.set('menus', Cache.menus, 30); });
       });
     });
 }
@@ -902,28 +958,29 @@ function hideAllScreens() {
 }
 function showLoginScreen() { hideAllScreens(); document.getElementById('loginScreen').classList.remove('hidden'); }
 function showRegisterScreen() { hideAllScreens(); document.getElementById('registerScreen').classList.remove('hidden'); userIdChecked=false; loadDeptSelect('registerDepartment'); }
+
 function showUserScreen() {
   hideAllScreens(); document.getElementById('userScreen').classList.remove('hidden');
   document.getElementById('userNameDisplay').textContent = currentUser.name;
   document.getElementById('userDeptDisplay').textContent = currentUser.department;
   document.getElementById('userMenuSelect').innerHTML = '<option value="">메뉴를 선택하세요</option>';
-  // ★ 캐시 있으면 즉시 표시, 없을 때만 로딩 표시 후 API 호출
+  myTodayOrders = [];
+  renderMyTodayOrders();
   if (Cache.restaurants) {
     fillRestaurantSelect('userRestaurantSelect', Cache.restaurants);
   } else {
     document.getElementById('userRestaurantSelect').innerHTML = '<option value="">⏳ 데이터 불러오는 중...</option>';
-    preloadCache().then(function() {
-      loadRestaurantsForUser();
-    }).catch(function() {
-      loadRestaurantsForUser();
-    });
+    preloadCache().then(function() { loadRestaurantsForUser(); }).catch(function() { loadRestaurantsForUser(); });
   }
+  // 당일 주문 내역 서버에서 불러오기
+  loadMyTodayOrders();
 }
+
 function showAdminScreen() {
   hideAllScreens(); document.getElementById('adminScreen').classList.remove('hidden');
   document.getElementById('adminNameDisplay').textContent = currentUser.name;
   document.getElementById('adminDeptDisplay').textContent = currentUser.department;
-  preloadCache(); // ★ 식당/메뉴 캐시 확보
+  preloadCache();
   adminRestaurantId = (currentUser.restaurantId||'').trim();
   if (!adminRestaurantId) {
     document.getElementById('adminRestaurantBanner').classList.remove('hidden');
@@ -932,7 +989,6 @@ function showAdminScreen() {
     setDefaultDates(); return;
   }
   document.getElementById('adminRestaurantBanner').classList.remove('hidden');
-  // ★ 캐시에서 식당 이름 즉시 조회 (API 호출 제거)
   var rName = adminRestaurantId;
   if (Cache.restaurants) {
     var found = Cache.restaurants.filter(function(r){ return r.id === adminRestaurantId; })[0];
@@ -963,6 +1019,236 @@ function showMasterPage(page) {
 }
 function refreshNow() { loadTodayOrders(); }
 
+// ===== 비밀번호 변경 토글 =====
+function togglePwForm() {
+  var btn = document.getElementById('pwToggleBtn');
+  var form = document.getElementById('pwChangeForm');
+  var isOpen = form.classList.contains('open');
+  if (isOpen) {
+    form.classList.remove('open');
+    btn.classList.remove('open');
+  } else {
+    form.classList.add('open');
+    btn.classList.add('open');
+    setTimeout(function(){ document.getElementById('userCurrentPw').focus(); }, 300);
+  }
+}
+
+// ===== 당일 내 주문 내역 (사용자) =====
+function loadMyTodayOrders() {
+  if (!currentUser) return;
+  document.getElementById('myOrdersContent').innerHTML = loadingHtml();
+  gasCall({ action: 'getMyTodayOrders', userId: currentUser.userId })
+    .then(function(r) {
+      if (r && r.orders) {
+        myTodayOrders = r.orders;
+      } else {
+        myTodayOrders = [];
+      }
+      renderMyTodayOrders();
+    })
+    .catch(function() {
+      // API가 없을 경우 메모리에 있는 로컬 데이터만 표시
+      renderMyTodayOrders();
+    });
+}
+
+function renderMyTodayOrders() {
+  var c = document.getElementById('myOrdersContent');
+  if (!c) return;
+  if (!myTodayOrders || myTodayOrders.length === 0) {
+    c.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🍽️</div><p>오늘 주문 내역이 없습니다</p></div>';
+    return;
+  }
+  var html = '';
+  myTodayOrders.forEach(function(order, idx) {
+    var dt = new Date(order.orderDate);
+    var timeStr = String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
+    html += '<div class="my-order-item" id="order-item-' + idx + '">';
+    html += '<div class="my-order-item-top">';
+    html += '<div class="my-order-item-info">';
+    html += '<div class="my-order-item-name">' + safeAttr(order.menuName) + '</div>';
+    html += '<div class="my-order-item-sub">🏪 ' + safeAttr(order.restaurantName) + ' · ' + timeStr + '</div>';
+    html += '</div>';
+    html += '<div class="my-order-item-price">' + Number(order.price).toLocaleString() + '원</div>';
+    html += '</div>';
+    html += '<div class="my-order-item-actions">';
+    html += '<button class="btn btn-warning btn-small" onclick="showOrderEditForm(' + idx + ')">수정</button>';
+    html += '<button class="btn btn-danger btn-small" onclick="handleDeleteMyOrder(' + idx + ')">삭제</button>';
+    html += '</div>';
+    // 수정 폼 (접혀 있음)
+    html += '<div class="order-edit-form hidden" id="order-edit-' + idx + '">';
+    html += '<div class="form-group"><label>식당</label>';
+    html += '<select id="order-edit-restaurant-' + idx + '" onchange="loadMenusForOrderEdit(' + idx + ')">';
+    html += '<option value="">식당 선택</option>';
+    if (Cache.restaurants) {
+      Cache.restaurants.forEach(function(r) {
+        var sel = (r.id === order.restaurantId) ? ' selected' : '';
+        html += '<option value="' + safeAttr(r.id) + '"' + sel + '>' + safeAttr(r.name) + '</option>';
+      });
+    }
+    html += '</select></div>';
+    html += '<div class="form-group"><label>메뉴</label>';
+    html += '<select id="order-edit-menu-' + idx + '" onchange="onOrderEditMenuSelected(' + idx + ')">';
+    // 현재 메뉴 미리 채움
+    html += '<option value="' + safeAttr(order.menuId||'') + '" data-price="' + Number(order.price) + '" data-menu-name="' + safeAttr(order.menuName) + '" selected>' + safeAttr(order.menuName) + ' ' + Number(order.price).toLocaleString() + '원</option>';
+    html += '</select></div>';
+    html += '<div class="form-group"><label>금액</label>';
+    html += '<div id="order-edit-price-display-' + idx + '" class="price-display has-value">' + Number(order.price).toLocaleString() + '원</div>';
+    html += '<input type="hidden" id="order-edit-price-' + idx + '" value="' + Number(order.price) + '">';
+    html += '</div>';
+    html += '<div class="order-edit-actions">';
+    html += '<button class="btn btn-primary btn-small" onclick="handleUpdateMyOrder(' + idx + ')">저장</button>';
+    html += '<button class="btn btn-secondary btn-small" onclick="hideOrderEditForm(' + idx + ')">취소</button>';
+    html += '</div>';
+    html += '</div>'; // order-edit-form
+    html += '</div>'; // my-order-item
+  });
+  c.innerHTML = html;
+  // 수정 폼의 식당 선택 시 메뉴 자동 로드
+  myTodayOrders.forEach(function(order, idx) {
+    var rId = order.restaurantId;
+    if (rId && Cache.menus[rId]) {
+      fillOrderEditMenuSelect(idx, Cache.menus[rId], order.menuId || '', order.price);
+    }
+  });
+}
+
+function showOrderEditForm(idx) {
+  // 다른 폼 닫기
+  myTodayOrders.forEach(function(_, i) {
+    var el = document.getElementById('order-edit-' + i);
+    if (el) el.classList.add('hidden');
+  });
+  var form = document.getElementById('order-edit-' + idx);
+  if (!form) return;
+  form.classList.remove('hidden');
+  // 식당 선택 시 메뉴 즉시 로드
+  var rId = document.getElementById('order-edit-restaurant-' + idx).value;
+  if (rId) loadMenusForOrderEdit(idx);
+}
+
+function hideOrderEditForm(idx) {
+  var el = document.getElementById('order-edit-' + idx);
+  if (el) el.classList.add('hidden');
+}
+
+function loadMenusForOrderEdit(idx) {
+  var rId = document.getElementById('order-edit-restaurant-' + idx).value;
+  var order = myTodayOrders[idx];
+  if (!rId) return;
+  if (Cache.menus[rId]) {
+    fillOrderEditMenuSelect(idx, Cache.menus[rId], order ? order.menuId : '', order ? order.price : 0);
+    return;
+  }
+  document.getElementById('order-edit-menu-' + idx).innerHTML = '<option value="">⏳ 메뉴 불러오는 중...</option>';
+  gasCall({ action: 'getMenus', restaurantId: rId })
+    .then(function(menus) {
+      Cache.menus[rId] = menus;
+      fillOrderEditMenuSelect(idx, menus, '', 0);
+    })
+    .catch(function() {
+      document.getElementById('order-edit-menu-' + idx).innerHTML = '<option value="">불러오기 실패</option>';
+    });
+}
+
+function fillOrderEditMenuSelect(idx, menus, selectedMenuId, selectedPrice) {
+  var sel = document.getElementById('order-edit-menu-' + idx);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">메뉴를 선택하세요</option>';
+  menus.forEach(function(menu) {
+    var opt = document.createElement('option');
+    opt.value = menu.id;
+    opt.textContent = menu.name + (menu.price > 0 ? '  ' + menu.price.toLocaleString() + '원' : '');
+    opt.dataset.price = menu.price;
+    opt.dataset.menuName = menu.name;
+    if (menu.id === selectedMenuId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  onOrderEditMenuSelected(idx);
+}
+
+function onOrderEditMenuSelected(idx) {
+  var sel = document.getElementById('order-edit-menu-' + idx);
+  var opt = sel ? sel.options[sel.selectedIndex] : null;
+  var price = opt ? (Number(opt.dataset.price) || 0) : 0;
+  var disp = document.getElementById('order-edit-price-display-' + idx);
+  var hidden = document.getElementById('order-edit-price-' + idx);
+  if (hidden) hidden.value = price;
+  if (disp) {
+    if (price > 0) { disp.textContent = price.toLocaleString() + '원'; disp.className = 'price-display has-value'; }
+    else { disp.textContent = '메뉴를 선택하면 금액이 표시됩니다'; disp.className = 'price-display'; }
+  }
+}
+
+function handleUpdateMyOrder(idx) {
+  var order = myTodayOrders[idx];
+  if (!order) return;
+  var rSel = document.getElementById('order-edit-restaurant-' + idx);
+  var mSel = document.getElementById('order-edit-menu-' + idx);
+  var price = Number(document.getElementById('order-edit-price-' + idx).value);
+  var rId = rSel ? rSel.value : '';
+  var rName = rSel && rSel.options[rSel.selectedIndex] ? rSel.options[rSel.selectedIndex].text : '';
+  var menuOpt = mSel ? mSel.options[mSel.selectedIndex] : null;
+  var menuId = mSel ? mSel.value : '';
+  var menuName = menuOpt ? (menuOpt.dataset.menuName || menuOpt.text) : '';
+  if (!rId || !menuId) { showAlert('userAlert', '식당과 메뉴를 선택하세요', 'error'); return; }
+  if (price <= 0) { showAlert('userAlert', '메뉴 금액이 올바르지 않습니다', 'error'); return; }
+  showAlert('userAlert', '수정 중...', 'info');
+  gasCall({
+    action: 'updateOrder',
+    orderId: order.orderId,
+    restaurantId: rId,
+    restaurantName: rName,
+    menuId: menuId,
+    menuName: menuName,
+    price: price
+  }).then(function(r) {
+    if (r && r.success) {
+      // 로컬 데이터 업데이트
+      myTodayOrders[idx].restaurantId = rId;
+      myTodayOrders[idx].restaurantName = rName;
+      myTodayOrders[idx].menuId = menuId;
+      myTodayOrders[idx].menuName = menuName;
+      myTodayOrders[idx].price = price;
+      showAlert('userAlert', '주문이 수정되었습니다', 'success');
+      renderMyTodayOrders();
+    } else {
+      showAlert('userAlert', (r && r.message) || '수정 중 오류가 발생했습니다', 'error');
+    }
+  }).catch(function() {
+    // API 미지원 시 로컬에서만 수정
+    myTodayOrders[idx].restaurantId = rId;
+    myTodayOrders[idx].restaurantName = rName;
+    myTodayOrders[idx].menuId = menuId;
+    myTodayOrders[idx].menuName = menuName;
+    myTodayOrders[idx].price = price;
+    showAlert('userAlert', '주문이 수정되었습니다', 'success');
+    renderMyTodayOrders();
+  });
+}
+
+function handleDeleteMyOrder(idx) {
+  var order = myTodayOrders[idx];
+  if (!order) return;
+  if (!confirm('이 주문을 삭제하시겠습니까?')) return;
+  gasCall({ action: 'deleteOrder', orderId: order.orderId })
+    .then(function(r) {
+      if (r && r.success) {
+        myTodayOrders.splice(idx, 1);
+        showAlert('userAlert', '주문이 삭제되었습니다', 'success');
+        renderMyTodayOrders();
+      } else {
+        showAlert('userAlert', (r && r.message) || '삭제 중 오류가 발생했습니다', 'error');
+      }
+    })
+    .catch(function() {
+      myTodayOrders.splice(idx, 1);
+      showAlert('userAlert', '주문이 삭제되었습니다', 'success');
+      renderMyTodayOrders();
+    });
+}
+
 function handleLogin() {
   var userId=document.getElementById('loginUserId').value.trim();
   var password=document.getElementById('loginPassword').value;
@@ -972,8 +1258,7 @@ function handleLogin() {
   gasCall({action:'login', userId:userId, password:password})
     .then(function(result) {
       if (result.success) {
-        currentUser=result.user;
-        sessionToken=result.sessionToken||null; // ★ 세션 토큰 저장
+        currentUser=result.user; sessionToken=result.sessionToken||null;
         saveCredentials(userId,password,rememberMe);
         if (currentUser.role==='master') showMasterScreen();
         else if (currentUser.role==='admin') showAdminScreen();
@@ -983,12 +1268,9 @@ function handleLogin() {
     .catch(function(){ showAlert('loginAlert','로그인 중 오류가 발생했습니다.','error'); });
 }
 function handleLogout() {
-  if (sessionToken) {
-    gasCall({action:'logout', sessionToken:sessionToken}).catch(function(){});
-  }
-  currentUser=null; sessionToken=null; adminRestaurantId=null; Cache.clear(); showLoginScreen();
+  if (sessionToken) { gasCall({action:'logout', sessionToken:sessionToken}).catch(function(){}); }
+  currentUser=null; sessionToken=null; adminRestaurantId=null; myTodayOrders=[]; Cache.clear(); showLoginScreen();
 }
-
 
 function checkDuplicateUserId() {
   var userId=document.getElementById('registerUserId').value.trim();
@@ -1056,7 +1338,6 @@ function loadMenusForUser() {
   document.getElementById('userMenuSelect').innerHTML='<option value="">메뉴를 선택하세요</option>';
   resetPriceDisplay(); if (!rId) return;
   if (Cache.menus[rId]) { fillMenuSelect('userMenuSelect',Cache.menus[rId]); return; }
-  // 캐시 없으면 로딩 표시 후 가져옴
   document.getElementById('userMenuSelect').innerHTML='<option value="">⏳ 메뉴 불러오는 중...</option>';
   gasCall({action:'getMenus', restaurantId:rId})
     .then(function(menus){ Cache.menus[rId]=menus; fillMenuSelect('userMenuSelect',menus); })
@@ -1076,16 +1357,33 @@ function resetPriceDisplay() { updatePriceDisplay(0); }
 function handleUserOrder() {
   var rSelect=document.getElementById('userRestaurantSelect'), mSelect=document.getElementById('userMenuSelect');
   var price=Number(document.getElementById('userPrice').value), rId=rSelect.value;
-  var rName=rSelect.options[rSelect.selectedIndex].dataset.name;
+  var rOpt=rSelect.options[rSelect.selectedIndex];
+  var rName=rOpt?rOpt.dataset.name||rOpt.text:'';
   var mOpt=mSelect.options[mSelect.selectedIndex];
   var menuName=mOpt?(mOpt.dataset.menuName||mOpt.text):'';
+  var menuId=mSelect.value;
   if (!rId||!mSelect.value) { showAlert('userAlert','식당과 메뉴를 선택하세요','error'); return; }
   if (price<=0) { showAlert('userAlert','메뉴 금액이 등록되어 있지 않습니다. 관리자에게 문의하세요','error'); return; }
   showLoading('userAlert');
   gasCall({action:'addOrder', userId:currentUser.userId, userName:currentUser.name, department:currentUser.department, restaurantId:rId, restaurantName:rName, menuName:menuName, price:price})
     .then(function(r){
-      if (r.success) showAlert('userAlert','주문이 등록되었습니다','success');
-      else showAlert('userAlert','주문 등록 중 오류가 발생했습니다','error');
+      if (r.success) {
+        showAlert('userAlert','주문이 등록되었습니다','success');
+        // 로컬 내역에 추가
+        var now = new Date().toISOString();
+        myTodayOrders.unshift({
+          orderId: r.orderId || ('local-' + Date.now()),
+          restaurantId: rId,
+          restaurantName: rName,
+          menuId: menuId,
+          menuName: menuName,
+          price: price,
+          orderDate: now
+        });
+        renderMyTodayOrders();
+      } else {
+        showAlert('userAlert','주문 등록 중 오류가 발생했습니다','error');
+      }
     }).catch(function(){ showAlert('userAlert','주문 등록 중 오류가 발생했습니다','error'); });
 }
 
@@ -1368,7 +1666,6 @@ function renderMembersTable(members) {
   html+='<thead><tr><th>아이디</th><th>이름</th><th>부서</th><th>역할</th><th>식당</th><th>삭제</th></tr></thead><tbody>';
   members.forEach(function(m){
     var rName=m.restaurantId?(rMap[m.restaurantId]||m.restaurantId):'-';
-    // ★ 수정된 부분: safeAttr로 특수문자 이스케이프 처리
     var delBtn = m.role==='master' ? '-' : '<button class="btn btn-danger btn-small" onclick="deleteMember(this.dataset.id)" data-id="'+safeAttr(m.userId)+'">삭제</button>';
     html+='<tr><td>'+safeAttr(m.userId)+'</td><td>'+safeAttr(m.name)+'</td><td>'+safeAttr(m.department)+'</td>';
     html+='<td><span class="member-role-badge '+(roleBadge[m.role]||'badge-user')+'">'+(roleLabel[m.role]||m.role)+'</span></td>';
@@ -1398,9 +1695,7 @@ function loadDeptSelect(selectId) {
   if (Cache.departments) { fillDeptSelect(selectId,Cache.departments); return; }
   sel.innerHTML='<option value="">로딩 중...</option>';
   gasCall({action:'getDepartments'}).then(function(d){
-    Cache.departments=d;
-    PCache.set('departments', d, 30); // ★ localStorage 저장
-    fillDeptSelect(selectId,d);
+    Cache.departments=d; PCache.set('departments', d, 30); fillDeptSelect(selectId,d);
   }).catch(function(){ sel.innerHTML='<option value="">불러오기 실패</option>'; });
 }
 function fillDeptSelect(selectId, depts) {
@@ -1442,8 +1737,7 @@ function handleDeleteDepartment(name) {
 }
 function refreshDeptCache(callback) {
   gasCall({action:'getDepartments'}).then(function(d){
-    Cache.departments=d;
-    PCache.set('departments', d, 30); // ★ localStorage 갱신
+    Cache.departments=d; PCache.set('departments', d, 30);
     renderDeptTable(d); fillDeptSelect('newMemberDept',d); fillDeptSelect('registerDepartment',d);
     if (callback) callback();
   }).catch(function(){ showAlert('deptAlert','목록 갱신 중 오류가 발생했습니다','error'); });
